@@ -22,8 +22,7 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 1. Copy env and fill in variables
    cp .env.example .env
 
-   - Set `MONGODB_URI` to your MongoDB Atlas connection string:
-     mongodb+srv://<username>:<password>@<cluster-url>/<db-name>?retryWrites=true&w=majority
+   - Set `MONGODB_URI` to your MongoDB Atlas connection string (see "MongoDB Atlas Setup" below for details).
    - Set `CORS_ORIGIN` to your frontend URL (development: http://localhost:3000)
    - Set a strong, unique `JWT_SECRET`
 
@@ -38,10 +37,60 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
    - Socket.IO on path SOCKET_PATH (default /socket.io)
      - Namespaces: /metrics, /users
 
+## MongoDB Atlas Setup
+
+This app uses Mongoose to connect to MongoDB. The connection is established in `src/config/db.js` via the exported `connectDB()` function, which uses the `MONGODB_URI` environment variable.
+
+Follow these steps to connect to Atlas:
+
+1) Create a Cluster (Atlas)
+- Sign in to https://www.mongodb.com/atlas and create a free/shared cluster.
+
+2) Create a Database User
+- Go to Database Access -> Add new database user.
+- Authentication method: Password.
+- Set a username and a strong password.
+- Grant role "Atlas admin" or "Read and write to any database" (sufficient for this app).
+- Save the credentials; they are used in your URI.
+
+3) Configure Network Access
+- Go to Network Access -> Add IP address.
+- For local development, use "Allow Access From Anywhere" (0.0.0.0/0).
+  - In production, restrict to known IPs only.
+- If using VPC peering or Private Endpoint, configure accordingly.
+
+4) Obtain the SRV Connection String
+- From Database -> Connect -> Drivers -> Copy the SRV URI.
+- Example format (replace placeholders):
+  mongodb+srv://<username>:<password>@<cluster-host>/<db-name>?retryWrites=true&w=majority&appName=CloudDashboard
+
+Notes:
+- The SRV scheme (mongodb+srv://) uses DNS to resolve your cluster. It's recommended for Atlas.
+- Keep `retryWrites=true&w=majority` for safe defaults; Atlas will include them by default.
+- `appName` is optional but recommended for identifying this application in logs/metrics.
+- If your password contains special characters, URL-encode it in the URI.
+
+5) Put the URI in .env
+- Open `.env` and set:
+  MONGODB_URI="mongodb+srv://<username>:<password>@<cluster-host>/<db-name>?retryWrites=true&w=majority&appName=CloudDashboard"
+- Do not commit real credentials to source control.
+
+6) Start the backend
+- npm run dev
+- On successful connection you will see logs from `connectDB()` like:
+  [db] connected
+
+Troubleshooting:
+- Authentication failed: Verify username/password and that the database user exists.
+- IP not whitelisted: Ensure your current IP is allowed under Network Access.
+- DNS/SRV errors: Ensure your environment can resolve SRV records (mongodb+srv) and outbound network access is allowed.
+- Local MongoDB alternative: You can also use a local URI such as mongodb://localhost:27017/cloud_dashboard (default in code if env is missing), but Atlas is recommended.
+
 ## Environment Variables
 
 - PORT: HTTP port (default 4000)
-- MONGODB_URI: MongoDB connection URI (Atlas recommended)
+- MONGODB_URI: MongoDB connection URI (Atlas recommended). Example:
+  mongodb+srv://dbuser:dbpass@cluster0.abc123.mongodb.net/cloud_dashboard?retryWrites=true&w=majority&appName=CloudDashboard
 - JWT_SECRET: Secret used to sign JWTs
 - CORS_ORIGIN: Allowed origin for CORS (e.g., http://localhost:3000)
 - SOCKET_PATH: Socket.IO server path (default /socket.io)
