@@ -5,7 +5,7 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 ## Features
 
 - Express HTTP API
-  - /health
+  - GET /health (readiness probe)
   - /auth: register, login, me
   - /users: CRUD (admin-restricted)
   - /metrics: stats, recent activity
@@ -22,7 +22,10 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 1. Copy env and fill in variables
    cp .env.example .env
 
-   Set `MONGODB_URI` to your MongoDB Atlas connection string.
+   - Set `MONGODB_URI` to your MongoDB Atlas connection string:
+     mongodb+srv://<username>:<password>@<cluster-url>/<db-name>?retryWrites=true&w=majority
+   - Set `CORS_ORIGIN` to your frontend URL (development: http://localhost:3000)
+   - Set a strong, unique `JWT_SECRET`
 
 2. Install dependencies
    npm install
@@ -31,24 +34,45 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
    npm run dev
 
    Server starts on PORT (default 4000) and exposes:
-   - GET /health
+   - GET /health -> {"status":"ok","time":"..."}
    - Socket.IO on path SOCKET_PATH (default /socket.io)
+     - Namespaces: /metrics, /users
 
 ## Environment Variables
 
 - PORT: HTTP port (default 4000)
-- MONGODB_URI: MongoDB connection URI
+- MONGODB_URI: MongoDB connection URI (Atlas recommended)
 - JWT_SECRET: Secret used to sign JWTs
 - CORS_ORIGIN: Allowed origin for CORS (e.g., http://localhost:3000)
 - SOCKET_PATH: Socket.IO server path (default /socket.io)
-- METRIC_TICK_MS: Interval for emitting metric updates
-- DEFAULT_ADMIN_NAME/EMAIL/PASSWORD: Admin user bootstrapped on startup
+- METRIC_TICK_MS: Interval (ms) for emitting metric updates (default 3000)
+- DEFAULT_ADMIN_NAME / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD: Admin user bootstrapped on startup
+
+See .env.example for a complete, copyable template.
+
+## CORS and Socket Path
+
+- CORS:
+  - Backend will allow requests from `CORS_ORIGIN` and set `credentials: true`.
+  - For local dev with CRA: set `CORS_ORIGIN=http://localhost:3000`
+
+- Socket.IO path and namespaces:
+  - Path is configurable via `SOCKET_PATH` (default `/socket.io`)
+  - Namespaces used: `/metrics`, `/users`
+  - The frontend may optionally set `REACT_APP_SOCKET_PATH` to match custom paths.
+
+## Health Check
+
+- GET /health
+  - Returns a simple JSON payload with current time.
+  - Intended for readiness probes and basic liveness checks.
 
 ## Frontend Integration
 
 Frontend should use:
 - REACT_APP_API_BASE_URL = http://localhost:4000
 - REACT_APP_SOCKET_URL = http://localhost:4000
+- Optionally, REACT_APP_SOCKET_PATH to match backend SOCKET_PATH if changed
 
 Auth:
 - POST /auth/register -> { token, user }
@@ -69,4 +93,4 @@ Metrics:
 
 ## Notes
 
-This is a working skeleton. Extend validations, error handling, and production configs (logging, CORS rules, secure cookies, etc.) before deployment.
+This is a working skeleton. Extend validations, error handling, and production configs (logging, CORS rules, secure cookies, rate limits, etc.) before deployment.

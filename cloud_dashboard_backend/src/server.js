@@ -41,6 +41,7 @@ async function bootstrap() {
   );
 
   // Health route
+  // Returns a basic readiness payload: { status: "ok", time: ISOString }
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
