@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './pages/NotFound';
+import UIShowcase from './pages/UIShowcase';
 
 export default function AppRoutes() {
   const [drawer, setDrawer] = useState(false);
@@ -31,6 +32,7 @@ export default function AppRoutes() {
               <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/ui-showcase" element={<UIShowcase />} />
             </Route>
           </Route>
           <Route path="/login" element={<Login />} />
