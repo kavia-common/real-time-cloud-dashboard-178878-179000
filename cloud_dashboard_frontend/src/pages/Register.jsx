@@ -1,13 +1,26 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import '../styles/theme.css';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [error, setError] = useState('');
+  const { register, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    alert('Registration placeholder. Implement API call later.');
+    setError('');
+    try {
+      await register(form.name, form.email, form.password);
+      const qsFrom = new URLSearchParams(location.search).get('from');
+      const to = qsFrom || '/';
+      navigate(to, { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Registration failed');
+    }
   };
 
   return (
@@ -15,6 +28,7 @@ export default function Register() {
       <form className="card auth" onSubmit={handleSubmit}>
         <h2>Create account</h2>
         <p className="muted">Join the platform</p>
+        {error ? <div className="badge warn" role="alert">{error}</div> : null}
         <label>Name</label>
         <input
           type="text"
@@ -39,7 +53,7 @@ export default function Register() {
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           placeholder="••••••••"
         />
-        <button className="btn primary" type="submit">Register</button>
+        <button className="btn primary" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Register'}</button>
         <p className="muted small">
           Have an account? <Link to="/login">Sign in</Link>
         </p>

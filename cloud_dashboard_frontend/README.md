@@ -1,82 +1,77 @@
-# Lightweight React Template for KAVIA
+# Cloud Dashboard Frontend (React)
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+React-based frontend for the Real-time Cloud Dashboard. Integrates with the Express + Socket.IO backend for authentication, user management, metrics, and live updates.
 
 ## Features
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+- Auth: Login, Register, Session validation via JWT
+- Users: Admin-only CRUD
+- Metrics: Stats and recent activity via REST
+- Realtime: Live event feed via Socket.IO (/metrics namespace)
+- Theming: Ocean Professional theme, responsive layout
+
+## Prerequisites
+
+- Node.js >= 18
+- Backend running (see ../cloud_dashboard_backend/README.md)
+
+## Environment
+
+Copy env example and adjust if needed:
+
+```
+cp .env.example .env
+```
+
+Available variables:
+
+- REACT_APP_API_BASE_URL: Base URL for REST API (default http://localhost:4000)
+- REACT_APP_SOCKET_URL: Base URL for Socket.IO (default http://localhost:4000)
+- REACT_APP_SOCKET_PATH: Optional custom Socket.IO path (defaults to /socket.io)
 
 ## Getting Started
 
-In the project directory, you can run:
+Install dependencies:
 
-### `npm start`
-
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-### `npm test`
-
-Launches the test runner in interactive watch mode.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-## Customization
-
-### Colors
-
-The main brand colors are defined as CSS variables in `src/App.css`:
-
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
+```
+npm install
 ```
 
-### Components
+Run development server:
 
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
+```
+npm start
+```
 
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
+App runs at http://localhost:3000
 
-## Learn More
+Ensure the backend is running at REACT_APP_API_BASE_URL and allows CORS for the frontend origin.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Auth Flow
 
-### Code Splitting
+- POST /auth/login and /auth/register return { token, user }
+- JWT stored in localStorage as auth_token; user in auth_user
+- On app load, if token exists, GET /auth/me is called to validate
+- If any API returns 401, the app automatically logs out and redirects to /login
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Users (Admin)
 
-### Analyzing the Bundle Size
+- List/create/update/delete via /users endpoints
+- Non-admins won't see Users table and controls
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Metrics
 
-### Making a Progressive Web App
+- GET /metrics/stats populates stat cards and chart baseline
+- GET /metrics/activity renders Recent Activity table
+- Socket.IO connects to namespace /metrics and listens for event `metric:update`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Scripts
 
-### Advanced Configuration
+- npm start: start dev server
+- npm run build: production build
+- npm test: run tests
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Notes
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Configure backend CORS_ORIGIN to match http://localhost:3000 in development.
+- For MongoDB Atlas configuration and backend env vars, see backend README.

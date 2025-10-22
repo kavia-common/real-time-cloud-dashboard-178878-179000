@@ -8,12 +8,19 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await login(form.email, form.password);
-    const to = location.state?.from?.pathname || '/';
-    navigate(to, { replace: true });
+    setError('');
+    try {
+      await login(form.email, form.password);
+      const qsFrom = new URLSearchParams(location.search).get('from');
+      const to = qsFrom || location.state?.from?.pathname || '/';
+      navigate(to, { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Login failed');
+    }
   };
 
   return (
@@ -21,6 +28,7 @@ export default function Login() {
       <form className="card auth" onSubmit={handleSubmit}>
         <h2>Welcome back</h2>
         <p className="muted">Sign in to your account</p>
+        {error ? <div className="badge warn" role="alert">{error}</div> : null}
         <label>Email</label>
         <input
           type="email"

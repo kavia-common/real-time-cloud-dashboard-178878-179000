@@ -4,9 +4,11 @@ import { io } from 'socket.io-client';
 /**
  * Hook wrapping Socket.IO client.
  * Reads REACT_APP_SOCKET_URL and exposes connect status and subscribe helper.
+ * Uses optional REACT_APP_SOCKET_PATH if provided (defaults to /socket.io).
  */
 export default function useSocket(namespace = '/') {
   const url = process.env.REACT_APP_SOCKET_URL || '';
+  const path = process.env.REACT_APP_SOCKET_PATH || '/socket.io';
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
 
@@ -14,6 +16,7 @@ export default function useSocket(namespace = '/') {
     const socket = io(url + namespace, {
       autoConnect: true,
       transports: ['websocket', 'polling'],
+      path,
     });
     socketRef.current = socket;
 
@@ -28,7 +31,7 @@ export default function useSocket(namespace = '/') {
       socket.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, namespace]);
+  }, [url, namespace, path]);
 
   // PUBLIC_INTERFACE
   const subscribe = (event, handler) => {

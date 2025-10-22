@@ -8,6 +8,11 @@ export default function Topbar({ onMenu }) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
+  const handleLogout = () => {
+    setOpen(false);
+    logout();
+  };
+
   return (
     <header className="topbar">
       <button className="icon-btn mobile-only" onClick={onMenu} aria-label="Open menu">☰</button>
@@ -23,7 +28,7 @@ export default function Topbar({ onMenu }) {
           {open && (
             <div className="menu">
               <a href="/profile">Profile</a>
-              <button className="link-btn" onClick={logout}>Logout</button>
+              <button className="link-btn" onClick={handleLogout}>Logout</button>
             </div>
           )}
         </div>

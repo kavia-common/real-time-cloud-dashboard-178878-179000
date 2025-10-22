@@ -2,73 +2,63 @@ import React, { useEffect, useMemo, useState } from 'react';
 import StatCard from '../components/ui/StatCard';
 import ChartLine from '../components/ui/ChartLine';
 import useSocket from '../hooks/useSocket';
+import http from '../api/http';
+import endpoints from '../api/endpoints';
 import '../styles/theme.css';
 
 export default function Dashboard() {
   const [feed, setFeed] = useState([]);
   const { connected, subscribe } = useSocket('/metrics');
 
+  const [stats, setStats] = useState({ count: 0, total: 0, average: 0, latest: [] });
+  const [chartData, setChartData] = useState([]);
+
   useEffect(() => {
-    // Mock subscription; backend can emit 'metric:update'
     const unsub = subscribe('metric:update', (payload) => {
-      setFeed((f) => [{ 
-        time: new Date().toLocaleTimeString(), 
+      setFeed((f) => [{
+        time: new Date().toLocaleTimeString(),
         id: Date.now() + Math.random(),
-        ...payload 
+        ...payload
       }, ...f].slice(0, 15));
     });
     return unsub;
   }, [subscribe]);
 
-  const chartData = useMemo(() => {
-    // Mock line data
-    return Array.from({ length: 20 }).map((_, i) => ({ 
-      x: i, 
-      y: Math.round(50 + 20 * Math.sin(i / 2)) 
-    }));
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const { data } = await http.get(endpoints.metrics.stats);
+        setStats(data);
+        const series = (data.latest || []).map((m, idx) => ({
+          x: idx,
+          y: Number(m.value || 0)
+        }));
+        setChartData(series.length ? series : Array.from({ length: 10 }).map((_, i) => ({ x: i, y: 0 })));
+      } catch {
+        // best-effort
+      }
+    }
+    loadStats();
   }, []);
+
+  const avgDisplay = useMemo(() => (stats.average ? stats.average.toFixed(2) : '0'), [stats.average]);
+  const totalDisplay = useMemo(() => String(stats.total || 0), [stats.total]);
+  const countDisplay = useMemo(() => String(stats.count || 0), [stats.count]);
 
   return (
     <div className="page dashboard">
-      {/* Header Section */}
       <div className="dashboard-header">
         <h1 className="dashboard-title">Performance Dashboard</h1>
         <div className="dashboard-subtitle">Real-time system metrics and monitoring</div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid stats">
-        <StatCard 
-          title="Active Users" 
-          value="128" 
-          subtitle="+12% WoW" 
-          icon="👤" 
-          trend="up"
-        />
-        <StatCard 
-          title="Requests/min" 
-          value="3,482" 
-          subtitle="+4%" 
-          icon="⚡" 
-          trend="up"
-        />
-        <StatCard 
-          title="Error Rate" 
-          value="0.7%" 
-          subtitle="-0.2%" 
-          icon="🧪" 
-          trend="down"
-        />
-        <StatCard 
-          title="Latency p95" 
-          value="220ms" 
-          subtitle="-15ms" 
-          icon="⏱️" 
-          trend="down"
-        />
+        <StatCard title="Samples" value={countDisplay} subtitle="Latest metric samples" icon="📦" />
+        <StatCard title="Total Value" value={totalDisplay} subtitle="Sum of latest values" icon="∑" />
+        <StatCard title="Average" value={avgDisplay} subtitle="Average of latest values" icon="𝜇" />
+        <StatCard title="Live Status" value={connected ? 'Live' : 'Offline'} subtitle="Socket connection" icon="🛰️" />
       </div>
 
-      {/* Charts Section */}
       <div className="grid two">
         <div className="chart-container">
           <div className="card">
@@ -77,7 +67,7 @@ export default function Dashboard() {
               <div className="chart-legend">
                 <span className="legend-item">
                   <span className="legend-color primary"></span>
-                  Response Time
+                  Requests per minute
                 </span>
               </div>
             </div>
@@ -87,7 +77,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Live Feed */}
         <div className="card feed-card">
           <div className="card-header with-border">
             <div className="feed-header">
@@ -109,7 +98,7 @@ export default function Dashboard() {
                         <span className="feed-type">{item.type || 'INFO'}</span>
                       </div>
                       <div className="feed-message">
-                        {item.message || 'Metric update received'}
+                        {item.message || `Value: ${item.value ?? ''}`}
                       </div>
                     </div>
                   ))}

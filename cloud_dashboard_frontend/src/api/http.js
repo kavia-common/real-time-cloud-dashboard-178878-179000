@@ -4,7 +4,7 @@ import axios from 'axios';
  * Axios instance configured for the dashboard API.
  * - Base URL from REACT_APP_API_BASE_URL
  * - Attaches Authorization header if token exists in localStorage
- * - Interceptors for handling errors and auth token refresh hooks (placeholder)
+ * - Centralized 401 handling: dispatches a global event to trigger logout+redirect
  */
 const baseURL = process.env.REACT_APP_API_BASE_URL || '';
 
@@ -22,14 +22,15 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
-// Basic response error handling
+// Response error handling: auto logout on 401
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Example: if 401, you could trigger logout or token refresh logic here
     if (error?.response?.status === 401) {
-      // Placeholder for future refresh/redirect
-      // e.g., window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      // broadcast unauthorized so AuthContext can react
+      try {
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      } catch {}
     }
     return Promise.reject(error);
   }
