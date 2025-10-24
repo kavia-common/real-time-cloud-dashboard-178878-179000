@@ -625,3 +625,41 @@ label {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* Live indicator styles */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
+  border: 1px solid var(--color-border);
+}
+.live-indicator .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  background: var(--color-error);
+}
+.live-indicator.connected .status-dot {
+  background: var(--color-success);
+}
+.live-indicator .status-text {
+  color: var(--color-text);
+}
+.status-dot.pulse {
+  box-shadow: 0 0 0 0 rgba(16,185,129,0.7);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+
+/* small margin right utility sometimes used */
+.mr-2 { margin-right: 0.5rem; }

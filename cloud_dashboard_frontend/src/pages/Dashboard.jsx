@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import StatCard from '../components/ui/StatCard';
 import ChartLine from '../components/ui/ChartLine';
+import LiveIndicator from '../components/ui/LiveIndicator';
 import useSocket from '../hooks/useSocket';
 import http from '../api/http';
 import endpoints from '../api/endpoints';
@@ -81,10 +82,7 @@ export default function Dashboard() {
           <div className="card-header with-border">
             <div className="feed-header">
               <h3>Live Events Feed</h3>
-              <div className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
-                <span className={`status-dot ${connected ? 'pulse' : ''}`}></span>
-                {connected ? 'Live' : 'Offline'}
-              </div>
+              <LiveIndicator connected={connected} />
             </div>
           </div>
           <div className="card-content">
