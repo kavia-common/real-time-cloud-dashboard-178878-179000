@@ -1,19 +1,41 @@
-const endpoints = {
+//
+// API endpoints mapping
+// Keep simple and aligned with backend Express routers
+//
+
+const API_BASE = process.env.REACT_APP_API_BASE_URL || '';
+
+const makePath = (base, path = '') => {
+  const trimmed = `${base}`.replace(/\/+$/, '');
+  const suffix = path ? `/${path.replace(/^\/+/, '')}` : '';
+  return `${trimmed}${suffix}`;
+};
+
+/* PUBLIC_INTERFACE: Endpoints mapping for backend REST API */
+export const endpoints = {
+  base: API_BASE,
+
+  // Auth routes
   auth: {
-    login: '/auth/login',
-    register: '/auth/register',
-    profile: '/auth/me',
+    base: makePath(API_BASE, '/auth'),
+    login: makePath(API_BASE, '/auth/login'),
+    register: makePath(API_BASE, '/auth/register'),
+    me: makePath(API_BASE, '/auth/me'),
   },
+
+  // Users routes
   users: {
-    list: '/users',
-    detail: (id) => `/users/${id}`,
-    create: '/users',
-    update: (id) => `/users/${id}`,
-    delete: (id) => `/users/${id}`,
+    base: makePath(API_BASE, '/users'),
+    byId: (id) => makePath(API_BASE, `/users/${id}`),
   },
+
+  // Metrics routes
   metrics: {
-    stats: '/metrics/stats',
-    activity: '/metrics/activity',
+    base: makePath(API_BASE, '/metrics'),
+    latest: makePath(API_BASE, '/metrics/latest'),
+    stats: makePath(API_BASE, '/metrics/stats'),
+    activity: makePath(API_BASE, '/metrics/activity'),
+    byId: (id) => makePath(API_BASE, `/metrics/${id}`),
   },
 };
 

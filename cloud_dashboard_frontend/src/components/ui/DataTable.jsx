@@ -2,10 +2,10 @@ import React from 'react';
 import '../../styles/theme.css';
 
 // PUBLIC_INTERFACE
-export default function DataTable({ columns = [], rows = [], keyField = 'id' }) {
+export default function DataTable({ columns = [], rows = [], keyField = 'id', className = '' }) {
   /** Simple table with headers and rows; ready for API data binding. */
   return (
-    <div className="card table">
+    <div className={`card table ${className}`.trim()}>
       <table className="table-el">
         <thead>
           <tr>
