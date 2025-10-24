@@ -11,7 +11,7 @@ const makePath = (base, path = '') => {
   return `${trimmed}${suffix}`;
 };
 
-// PUBLIC_INTERFACE
+/* PUBLIC_INTERFACE: Endpoints mapping for backend REST API */
 export const endpoints = {
   base: API_BASE,
 
