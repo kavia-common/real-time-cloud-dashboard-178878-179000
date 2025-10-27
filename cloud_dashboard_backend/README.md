@@ -36,10 +36,11 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 3. Run in development
    npm run dev
 
-   Server starts on PORT (default 4000) and exposes:
-   - GET /health -> {"status":"ok","time":"..."}
+   Server starts on PORT (default 4000) ONLY after a successful MongoDB connection and admin bootstrap.
+   - GET /health and /api/health -> {"status":"ok","time":"..."}
    - Socket.IO on path SOCKET_PATH (default /socket.io)
      - Namespaces: /metrics, /users
+   - HTTP timeouts: requestTimeout=60s, headersTimeout=65s, keepAliveTimeout=20s
 
 4. Verify locally (sanity scripts)
    - Ensure `jq` is installed.
@@ -131,7 +132,10 @@ A ready-to-use template is available at `.env.example`. Copy it to `.env` and fi
 ## CORS and Socket Path
 
 - CORS:
-  - Backend allows requests from `CORS_ORIGIN` with `credentials: true`.
+  - Backend allows requests only from the exact `CORS_ORIGIN`.
+  - `credentials` are disabled by default to simplify CORS and reduce cookie-related preflight issues.
+  - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS. Allowed headers: Content-Type, Authorization, X-Requested-With.
+  - Preflight is handled globally and returns 204 with proper `Access-Control-Allow-*` headers.
 - Socket.IO:
   - Configurable path via `SOCKET_PATH` (default `/socket.io`).
   - Namespaces: `/metrics`, `/users`.
@@ -139,12 +143,17 @@ A ready-to-use template is available at `.env.example`. Copy it to `.env` and fi
 
 ## Health Check
 
-- GET /health
+- GET /health and GET /api/health
   - Returns `{ status: "ok", time: ISOString }`.
-- GET /auth/echo
+- GET /auth/echo and GET /api/echo
   - Returns `{ ok: true, time, origin, path }` without auth. Useful to diagnose CORS/adblock/network issues quickly.
 
 ## Frontend Integration
+
+Duplicate API base paths:
+- Legacy paths remain: `/auth`, `/users`, `/metrics`
+- New safe prefix duplicates: `/api/auth`, `/api/users`, `/api/metrics`
+- Prefer using `/api/*` on the frontend to avoid ad/tracker blockers that may target `/auth` or `/metrics` paths.
 
 Frontend should use:
 - REACT_APP_API_BASE_URL = http://localhost:4000

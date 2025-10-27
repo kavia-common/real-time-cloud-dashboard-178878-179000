@@ -18,44 +18,98 @@ import metricsRoutes from './routes/metrics.js';
 /**
  * Creates and starts the HTTP server with Express and Socket.IO.
  * Routes:
- *  - GET /health               Health check
- *  - /auth (POST /login, POST /register, GET /me, POST /logout, GET /echo)
- *  - /users (CRUD, admin restricted)
- *  - /metrics (GET /stats, GET /activity)
+ *  - GET /health and /api/health           Health check
+ *  - /auth and /api/auth                   (POST /login, POST /register, GET /me, POST /logout, GET /echo)
+ *  - /users and /api/users                 (CRUD, admin restricted)
+ *  - /metrics and /api/metrics             (GET /stats, GET /activity)
+ * Notes:
+ *  - Keeps legacy non-/api paths for backward compatibility
+ *  - Adds robust CORS with exact origin and credentials disabled
+ *  - Adds request/response logging for auth endpoints (minimal info)
+ *  - Ensures server listens only after successful DB connect
+ *  - Sets sane server timeouts
  */
 async function bootstrap() {
   const app = express();
 
-  // Security and utilities
+  // Security headers
   app.use(helmet());
-  // CORS: restrict to configured origin and support credentials
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-  // Handle preflight globally
-  app.options('*', cors({ origin: env.CORS_ORIGIN, credentials: true }));
-  // Strict JSON parser with error handler
+
+  // CORS: exact origin; credentials disabled to simplify preflight and avoid cookie issues
+  const allowedOrigin = env.CORS_ORIGIN;
+  const corsConfig = {
+    origin: function (origin, callback) {
+      // Allow same-origin or exact configured origin; also allow no Origin for curl/health
+      if (!origin || origin === allowedOrigin) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: false,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    maxAge: 86400,
+    optionsSuccessStatus: 204
+  };
+  app.use(cors(corsConfig));
+  // Preflight for all routes
+  app.options('*', cors(corsConfig));
+
+  // JSON parser
   app.use(express.json({ limit: '1mb', strict: true }));
-  // Access logging
+
+  // Access logging (dev concise)
   app.use(morgan('dev'));
+
   // Rate limiter
   app.use(
     rateLimit({
       windowMs: 60 * 1000,
       limit: 200,
       standardHeaders: 'draft-7',
-      legacyHeaders: false
+      legacyHeaders: false,
+      message: { error: 'Too many requests' }
     })
   );
 
-  // Health route
-  // Returns a basic readiness payload: { status: "ok", time: ISOString }
+  // Health routes (legacy and /api)
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+  });
 
-  // Mount API routes
-  app.use('/auth', authRoutes);
+  // Lightweight request/response logging for auth endpoints
+  const authAudit = (req, res, next) => {
+    const start = Date.now();
+    const { method, originalUrl } = req;
+    // Minimal identifying info; never log credentials/body
+    res.on('finish', () => {
+      const ms = Date.now() - start;
+      // eslint-disable-next-line no-console
+      console.log('[auth_audit]', method, originalUrl, '->', res.statusCode, `${ms}ms`);
+    });
+    next();
+  };
+
+  // Echo under /api to diagnose adblock/CORS quickly
+  app.get('/api/echo', (req, res) => {
+    res.json({
+      ok: true,
+      time: new Date().toISOString(),
+      origin: req.headers.origin || null,
+      path: req.originalUrl
+    });
+  });
+
+  // Mount API routes (legacy)
+  app.use('/auth', authAudit, authRoutes);
   app.use('/users', usersRoutes);
   app.use('/metrics', metricsRoutes);
+
+  // Mount duplicate API routes under /api/*
+  app.use('/api/auth', authAudit, authRoutes);
+  app.use('/api/users', usersRoutes);
+  app.use('/api/metrics', metricsRoutes);
 
   // 404 handler for unknown API routes
   app.use((req, res, next) => {
@@ -82,7 +136,7 @@ async function bootstrap() {
   const server = http.createServer(app);
   const io = new SocketIOServer(server, {
     path: env.SOCKET_PATH,
-    cors: { origin: env.CORS_ORIGIN, methods: ['GET', 'POST'] }
+    cors: { origin: allowedOrigin, methods: ['GET', 'POST'] }
   });
   initSockets(io);
 
@@ -91,15 +145,10 @@ async function bootstrap() {
 
   // Quick DB/index self-check (non-fatal): validates models/indexes are usable
   try {
-    // Ensure indexes are built for critical collections
     const { User } = await import('./models/User.js');
     const { Activity } = await import('./models/Activity.js');
     const { Metric } = await import('./models/Metric.js');
-    await Promise.all([
-      User.syncIndexes(),
-      Activity.syncIndexes(),
-      Metric.syncIndexes(),
-    ]);
+    await Promise.all([User.syncIndexes(), Activity.syncIndexes(), Metric.syncIndexes()]);
     console.log('[db] index sync completed');
   } catch (e) {
     console.warn('[db] index sync warning:', e?.message || e);
@@ -108,6 +157,12 @@ async function bootstrap() {
   // Idempotent admin seeding after successful DB connection
   await ensureDefaultAdmin();
 
+  // Sane timeouts
+  server.headersTimeout = 65_000;   // Node default 60s; bump slightly
+  server.requestTimeout = 60_000;   // Time to receive entire request
+  server.keepAliveTimeout = 20_000; // Keep-alive to balance proxies
+
+  // Start listening only after successful DB connect and seeding
   server.listen(env.PORT, () => {
     console.log(`Server listening on http://localhost:${env.PORT}`);
   });
