@@ -60,5 +60,5 @@ The app will run at http://localhost:3000.
 
 ## Notes
 
-- Ensure the backend uses the same Socket.IO path as the frontend's `REACT_APP_SOCKET_PATH` (default `/socket.io`).
+- Ensure the backend uses the same Socket.IO path as the frontend's `REACT_APP_SOCKET_PATH` (default `/socket.io`) and that the backend `CORS_ORIGIN` matches the frontend origin (default `http://localhost:3000`).
 - JWT is stored in `localStorage` under `rtcd_access_token`. If changed on the backend, update `src/api/http.js`.

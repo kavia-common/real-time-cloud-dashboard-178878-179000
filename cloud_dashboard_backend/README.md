@@ -27,6 +27,7 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
    - Set `CORS_ORIGIN` to your frontend URL (development: http://localhost:3000)
    - Set a strong, unique `JWT_SECRET`
    - Optionally adjust `SOCKET_PATH` and `METRIC_TICK_MS`
+   - IMPORTANT: `CORS_ORIGIN` must equal your frontend origin (e.g., http://localhost:3000) and `SOCKET_PATH` must equal the frontend `REACT_APP_SOCKET_PATH` (default `/socket.io`)
 
 2. Install dependencies
    npm install
