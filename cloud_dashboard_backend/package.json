@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "NODE_ENV=development node --watch src/server.js",
     "start": "node src/server.js",
     "lint": "echo \"No linter configured\"",
     "health": "node -e \"import('./src/config/env.js').then(({env})=>console.log('OK on port', env.PORT))\""

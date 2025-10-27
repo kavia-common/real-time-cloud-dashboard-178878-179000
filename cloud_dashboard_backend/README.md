@@ -14,7 +14,7 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
   - /users: placeholder for user-related realtime events
 - MongoDB (Mongoose)
   - Models: User, Activity, Metric
-- Security middlewares: helmet, rate-limiter, CORS
+- Security middlewares: helmet, rate-limiter, CORS, centralized error handler
 - Default admin bootstrap from environment variables
 
 ## Getting Started
