@@ -162,13 +162,18 @@ router.post('/', authRequired, requireAdmin, async (req, res, next) => {
 
     const user = await User.create(payload);
 
-    await Activity.create({
+    const activity = await Activity.create({
       userId: req.user.id,
       userEmail: req.user.email,
       action: 'create_user',
       details: `Created user ${user.email}`,
       ip: req.ip
     });
+
+    // Emit real-time activity event to Socket.IO clients
+    if (typeof global.emitActivityEvent === 'function') {
+      global.emitActivityEvent(activity);
+    }
 
     return res.status(201).json({
       id: user._id,
@@ -234,13 +239,18 @@ router.put('/:id', authRequired, async (req, res, next) => {
       .lean();
     if (!updated) return res.status(404).json({ error: { code: 'not_found', message: 'User not found' } });
 
-    await Activity.create({
+    const activity = await Activity.create({
       userId: req.user.id,
       userEmail: req.user.email,
       action: 'update_user',
       details: `Updated user ${updated.email}`,
       ip: req.ip
     });
+
+    // Emit real-time activity event to Socket.IO clients
+    if (typeof global.emitActivityEvent === 'function') {
+      global.emitActivityEvent(activity);
+    }
 
     return res.json({ id: updated._id, name: updated.name, email: updated.email, role: updated.role, status: updated.status, createdAt: updated.createdAt, updatedAt: updated.updatedAt });
   } catch (err) {
@@ -258,13 +268,18 @@ router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
     const deleted = await User.findByIdAndDelete(id).lean();
     if (!deleted) return res.status(404).json({ error: { code: 'not_found', message: 'User not found' } });
 
-    await Activity.create({
+    const activity = await Activity.create({
       userId: req.user.id,
       userEmail: req.user.email,
       action: 'delete_user',
       details: `Deleted user ${deleted.email}`,
       ip: req.ip
     });
+
+    // Emit real-time activity event to Socket.IO clients
+    if (typeof global.emitActivityEvent === 'function') {
+      global.emitActivityEvent(activity);
+    }
 
     return res.json({ success: true });
   } catch (err) {

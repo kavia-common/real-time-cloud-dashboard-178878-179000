@@ -31,12 +31,17 @@ router.post('/register', async (req, res) => {
     const passwordHash = await User.hashPassword(password);
     const user = await User.create({ name, email, passwordHash, role: 'user', status: 'active' });
 
-    await Activity.create({
+    const activity = await Activity.create({
       userId: user._id,
       userEmail: user.email,
       action: 'login', // recorded as general activity type
       details: `User ${email} registered`
     });
+
+    // Emit real-time activity event to Socket.IO clients
+    if (typeof global.emitActivityEvent === 'function') {
+      global.emitActivityEvent(activity);
+    }
 
     const token = signUserToken(user);
     return res.status(201).json({
@@ -79,12 +84,17 @@ router.post('/login', async (req, res) => {
 
     const token = signUserToken(user);
 
-    await Activity.create({
+    const activity = await Activity.create({
       userId: user._id,
       userEmail: user.email,
       action: 'login',
       details: 'User logged in'
     });
+
+    // Emit real-time activity event to Socket.IO clients
+    if (typeof global.emitActivityEvent === 'function') {
+      global.emitActivityEvent(activity);
+    }
 
     return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {

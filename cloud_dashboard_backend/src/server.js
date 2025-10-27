@@ -75,7 +75,9 @@ async function bootstrap() {
     path: env.SOCKET_PATH,
     cors: { origin: env.CORS_ORIGIN, methods: ['GET', 'POST'], credentials: true }
   });
-  initSockets(io);
+  
+  // Initialize sockets and store cleanup function
+  const cleanupSockets = initSockets(io);
 
   // Database connect and default admin
   await connectDB();
@@ -84,6 +86,36 @@ async function bootstrap() {
   server.listen(env.PORT, () => {
     console.log(`Server listening on http://localhost:${env.PORT} (socket path: ${env.SOCKET_PATH})`);
   });
+
+  // Graceful shutdown handler
+  const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} received: starting graceful shutdown...`);
+    
+    // Stop accepting new connections
+    server.close(() => {
+      console.log('HTTP server closed');
+    });
+
+    // Close Socket.IO connections and clear timers
+    if (cleanupSockets) {
+      cleanupSockets();
+    }
+
+    // Close Socket.IO server
+    io.close(() => {
+      console.log('Socket.IO server closed');
+    });
+
+    // Allow time for cleanup then exit
+    setTimeout(() => {
+      console.log('Graceful shutdown complete');
+      process.exit(0);
+    }, 1000);
+  };
+
+  // Register shutdown handlers
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 bootstrap().catch((err) => {

@@ -46,8 +46,9 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Unique index on email
-UserSchema.index({ email: 1 }, { unique: true });
+// Note: email unique index is already defined in schema with 'unique: true'
+// Index on status for efficient active user queries
+UserSchema.index({ status: 1 });
 
 // PUBLIC_INTERFACE
 UserSchema.methods.comparePassword = async function comparePassword(plain) {
