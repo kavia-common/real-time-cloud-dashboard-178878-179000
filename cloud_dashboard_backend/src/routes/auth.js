@@ -7,15 +7,26 @@ const router = Router();
 
 /**
  * POST /auth/register
- * Registers a new user. Admin presence required in real app; for skeleton we allow public.
+ * summary: Register a new user
+ * description: Creates a new user account, hashes password with bcrypt, issues JWT.
+ * requestBody: { name: string, email: string, password: string }
+ * responses:
+ *  - 201: { token: string, user: { id, name, email, role } }
+ *  - 400: { error: { code, message } }
+ *  - 409: { error: { code, message } }
+ *  - 500: { error: { code, message } }
  */
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
-    if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: { code: 'bad_request', message: 'Missing required fields' } });
+    }
 
     const exists = await User.findOne({ email });
-    if (exists) return res.status(409).json({ error: 'Email already in use' });
+    if (exists) {
+      return res.status(409).json({ error: { code: 'conflict', message: 'Email already in use' } });
+    }
 
     const passwordHash = await User.hashPassword(password);
     const user = await User.create({ name, email, passwordHash, role: 'user', status: 'active' });
@@ -23,62 +34,87 @@ router.post('/register', async (req, res) => {
     await Activity.create({
       userId: user._id,
       userEmail: user.email,
-      action: 'user.register',
+      action: 'login', // recorded as general activity type
       details: `User ${email} registered`
     });
 
     const token = signUserToken(user);
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    return res.status(201).json({
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     console.error('[auth.register] error', err);
-    res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: { code: 'server_error', message: 'Internal Server Error' } });
   }
 });
 
 /**
  * POST /auth/login
- * Login with email/password.
+ * summary: Login user
+ * description: Authenticates with email and password, returns JWT and user profile.
+ * requestBody: { email: string, password: string }
+ * responses:
+ *  - 200: { token: string, user: { id, name, email, role } }
+ *  - 400: { error: { code, message } }
+ *  - 401: { error: { code, message } }
+ *  - 500: { error: { code, message } }
  */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
+    if (!email || !password) {
+      return res.status(400).json({ error: { code: 'bad_request', message: 'Missing email or password' } });
+    }
 
     const user = await User.findOne({ email }).select('+passwordHash');
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) {
+      return res.status(401).json({ error: { code: 'invalid_credentials', message: 'Invalid credentials' } });
+    }
 
     const ok = await user.comparePassword(password);
-    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!ok) {
+      return res.status(401).json({ error: { code: 'invalid_credentials', message: 'Invalid credentials' } });
+    }
 
     const token = signUserToken(user);
 
     await Activity.create({
       userId: user._id,
       userEmail: user.email,
-      action: 'user.login',
+      action: 'login',
       details: 'User logged in'
     });
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error('[auth.login] error', err);
-    res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: { code: 'server_error', message: 'Internal Server Error' } });
   }
 });
 
 /**
  * GET /auth/me
- * Returns current user info from token.
+ * summary: Current authenticated user
+ * description: Returns the user profile for the provided Bearer token.
+ * security: BearerAuth
+ * responses:
+ *  - 200: { id, name, email, role, status, createdAt, updatedAt }
+ *  - 401: { error: { code, message } }
+ *  - 404: { error: { code, message } }
+ *  - 500: { error: { code, message } }
  */
 router.get('/me', authRequired, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).lean();
-    if (!user) return res.status(404).json({ error: 'Not found' });
+    if (!user) {
+      return res.status(404).json({ error: { code: 'not_found', message: 'User not found' } });
+    }
     const { _id, name, email, role, status, createdAt, updatedAt } = user;
-    res.json({ id: _id, name, email, role, status, createdAt, updatedAt });
+    return res.json({ id: _id, name, email, role, status, createdAt, updatedAt });
   } catch (err) {
     console.error('[auth.me] error', err);
-    res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: { code: 'server_error', message: 'Internal Server Error' } });
   }
 });
 
