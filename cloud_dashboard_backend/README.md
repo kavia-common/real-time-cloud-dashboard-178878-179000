@@ -167,6 +167,77 @@ Metrics:
 - GET /metrics/activity?page=1&limit=30 -> { page, limit, total, items: [...] }
 - Socket namespace /metrics -> event `metric:update` with { type, message, value, timestamp }
 
+## CORS and Preflight
+
+- CORS is restricted to `CORS_ORIGIN`. Ensure it matches your frontend (e.g., `http://localhost:3000`).
+- Socket.IO CORS uses the same origin with allowed methods GET/POST.
+- Preflight: Express `cors` middleware automatically handles OPTIONS requests. You can test with:
+  curl -i -X OPTIONS http://localhost:4000/auth/login \
+    -H "Origin: http://localhost:3000" \
+    -H "Access-Control-Request-Method: POST"
+
+## Exact cURL sanity checks
+
+Register a user:
+curl -sS -X POST http://localhost:4000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"user@example.com","password":"test1234"}'
+
+Login:
+curl -sS -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"test1234"}'
+
+Me (replace TOKEN):
+curl -sS http://localhost:4000/auth/me \
+  -H "Authorization: Bearer TOKEN"
+
+Admin login (uses DEFAULT_ADMIN_*):
+curl -sS -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"${DEFAULT_ADMIN_EMAIL}\",\"password\":\"${DEFAULT_ADMIN_PASSWORD}\"}"
+
+Create user (admin):
+curl -sS -X POST http://localhost:4000/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"name":"CLI Created","email":"cli.created@example.com","password":"changeme","role":"user","status":"active"}'
+
+Metrics stats:
+curl -sS http://localhost:4000/metrics/stats \
+  -H "Authorization: Bearer TOKEN"
+
+Activity (page/limit):
+curl -sS "http://localhost:4000/metrics/activity?page=1&limit=10" \
+  -H "Authorization: Bearer TOKEN"
+
+## Troubleshooting
+
+- CORS blocked:
+  - Ensure `CORS_ORIGIN` matches the frontend origin exactly, including scheme and port.
+  - Restart the backend after changing `.env`.
+
+- Admin login fails:
+  - Confirm `DEFAULT_ADMIN_EMAIL`/`DEFAULT_ADMIN_PASSWORD` in `.env`.
+  - Check logs for `[auth] Default admin ensured:` on startup.
+  - If a conflicting user already exists with same email but different schema, update/delete it manually.
+
+- Invalid JWT / 401:
+  - Verify the `Authorization: Bearer <token>` header is sent.
+  - Tokens expire after 7 days; login again.
+
+- MongoDB connection:
+  - Verify `MONGODB_URI` with valid credentials and IP whitelist.
+  - Use SRV (`mongodb+srv://`) and URL-encode special characters.
+
+- Socket.IO no events:
+  - Ensure `REACT_APP_SOCKET_PATH` equals backend `SOCKET_PATH`.
+  - Namespace `/metrics` emits `metric:update` every `METRIC_TICK_MS`.
+
+- Preflight/OPTIONS errors:
+  - Ensure the request includes `Origin` header and correct `Access-Control-Request-Method`.
+  - The `cors` middleware should respond with 204 and proper `Access-Control-Allow-*` headers.
+
 ## Notes
 
 This app is production-ready in structure; before deploying:

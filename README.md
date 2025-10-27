@@ -83,10 +83,12 @@ See cloud_dashboard_backend/README.md for full details and troubleshooting.
 
 Backend readiness
 - GET /health returns { "status":"ok", "time":"..." }.
+- OPTIONS preflight succeeds for CORS_ORIGIN.
 
 Auth
 - Login using DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD from backend .env.
 - GET /auth/me with Bearer token returns current user.
+- Errors are JSON: { "error": "message" } with appropriate HTTP codes.
 
 Users CRUD (admin)
 - Create user: POST /users (or via frontend Users page).
@@ -107,6 +109,12 @@ Atlas connectivity
 - Backend logs "[db] connected" on startup.
 - Metric inserts succeed periodically (see src/sockets/index.js).
 - No MongoAuth/network errors in backend logs.
+
+Quick cURL sanity
+- Register: curl -X POST http://localhost:4000/auth/register -H "Content-Type: application/json" -d '{"name":"Test","email":"user@example.com","password":"test1234"}'
+- Login: curl -X POST http://localhost:4000/auth/login -H "Content-Type: application/json" -d '{"email":"user@example.com","password":"test1234"}'
+- Me: curl http://localhost:4000/auth/me -H "Authorization: Bearer TOKEN"
+- Metrics: curl http://localhost:4000/metrics/stats -H "Authorization: Bearer TOKEN"
 
 ## 5) Troubleshooting
 

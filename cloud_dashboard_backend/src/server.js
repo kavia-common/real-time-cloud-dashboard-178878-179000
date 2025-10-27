@@ -29,6 +29,8 @@ async function bootstrap() {
   // Security and utilities
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  // Handle preflight globally
+  app.options('*', cors({ origin: env.CORS_ORIGIN, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan('dev'));
   app.use(

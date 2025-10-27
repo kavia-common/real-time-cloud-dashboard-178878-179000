@@ -28,6 +28,7 @@ export function initSockets(io) {
   });
 
   // Example ticker generating demo metric updates and persisting optionally
+  const tickMs = Number.isFinite(env.METRIC_TICK_MS) && env.METRIC_TICK_MS > 0 ? env.METRIC_TICK_MS : 3000;
   setInterval(async () => {
     const value = Math.round(50 + Math.random() * 50);
     const payload = {

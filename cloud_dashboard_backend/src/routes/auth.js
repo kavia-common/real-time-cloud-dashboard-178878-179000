@@ -13,6 +13,8 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
     if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Password too short' });
 
     const exists = await User.findOne({ email });
     if (exists) return res.status(409).json({ error: 'Email already in use' });
