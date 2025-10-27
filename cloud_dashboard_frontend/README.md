@@ -17,19 +17,28 @@ React-based frontend for the Real-time Cloud Dashboard. Integrates with the Expr
 
 ## Environment
 
-Create `.env` from `.env.example`:
+Quick start:
 
+1) Copy example:
 ```
 cp .env.example .env
 ```
 
-Set the following variables:
+2) Set required variables in .env:
+```
+REACT_APP_API_BASE_URL=http://localhost:4000/api
+REACT_APP_SOCKET_URL=http://localhost:4000
+REACT_APP_SOCKET_PATH=/socket.io
+```
 
-- REACT_APP_API_BASE_URL: Base URL for REST API (example http://localhost:4000). If not set, the app warns and falls back to http://localhost:4000.
-- REACT_APP_SOCKET_URL: Backend origin for Socket.IO (example http://localhost:4000)
-- REACT_APP_SOCKET_PATH: Socket.IO path; must match backend SOCKET_PATH (default /socket.io)
+- http.js reads REACT_APP_API_BASE_URL for Axios baseURL.
+- useSocket.js reads REACT_APP_SOCKET_URL and REACT_APP_SOCKET_PATH for Socket.IO client.
+- Ensure backend CORS_ORIGIN includes your frontend origin (e.g., http://localhost:3000).
 
-Ensure backend CORS_ORIGIN includes your frontend origin (e.g., http://localhost:3000).
+Important:
+- After changing any REACT_APP_* variables, you must rebuild/restart the frontend for changes to take effect.
+  - Dev: stop and re-run `npm start`
+  - Prod: re-run `npm run build` and redeploy
 
 ## Auth expectations
 
