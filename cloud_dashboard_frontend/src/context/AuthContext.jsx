@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../api/endpoints';
-import http, { subscribeAuth } from '../api/http';
+import { subscribeAuth } from '../api/http';
 
 const AuthContext = createContext(null);
 

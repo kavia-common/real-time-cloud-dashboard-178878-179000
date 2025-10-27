@@ -19,7 +19,7 @@ export default function UIShowcase() {
     password: '',
     name: '',
   });
-  const [errors, setErrors] = useState({});
+  const [errors] = useState({});
 
   const handleSubmit = (e) => {
     e.preventDefault();

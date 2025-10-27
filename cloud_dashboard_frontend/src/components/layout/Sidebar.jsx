@@ -94,7 +94,7 @@ export default function Sidebar() {
         />
       )}
 
-      <aside className={`sidebar ${isCollapsed ? 'sidebar--collapsed' : ''}`} role="complementary" aria-label="Primary">
+      <aside className={`sidebar ${isCollapsed ? 'sidebar--collapsed' : ''}`} aria-label="Primary">
         {/* Header */}
         <div className="sidebar-header">
           <div className="sidebar-brand" aria-label="CloudDash brand">
@@ -123,7 +123,13 @@ export default function Sidebar() {
               const hasSubmenu = link.subItems && link.subItems.length > 0;
               
               return (
-                <li key={link.to} className="sidebar-item" role="treeitem" aria-expanded={hasSubmenu ? activeSubmenu === index : undefined}>
+                <li
+                  key={link.to}
+                  className="sidebar-item"
+                  role="treeitem"
+                  aria-expanded={hasSubmenu ? activeSubmenu === index : undefined}
+                  aria-selected={isActive ? true : false}
+                >
                   {hasSubmenu ? (
                     <>
                       <button

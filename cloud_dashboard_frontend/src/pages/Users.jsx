@@ -77,7 +77,7 @@ export default function Users() {
     return base;
   }, [isAdmin]);
 
-  const optimistic = useMemo(() => ({ pendingIds, errorIds }), [pendingIds, errorIds]);
+  // const optimistic = useMemo(() => ({ pendingIds, errorIds }), [pendingIds, errorIds]);
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -191,7 +191,6 @@ export default function Users() {
     const id = toDelete.id;
     try {
       // optimistic remove
-      const prev = rows;
       setRows((rs) => rs.filter((r) => r.id !== id));
       await apiUsers.remove(id);
       setToDelete(null);

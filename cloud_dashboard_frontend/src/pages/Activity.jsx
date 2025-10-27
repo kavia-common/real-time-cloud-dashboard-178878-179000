@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DataTable from '../components/ui/DataTable';
-import http from '../api/http';
-import endpoints, { apiMetrics } from '../api/endpoints';
+import { apiMetrics } from '../api/endpoints';
 import useSocket from '../hooks/useSocket';
 import LiveIndicator from '../components/ui/LiveIndicator';
 import '../styles/theme.css';
