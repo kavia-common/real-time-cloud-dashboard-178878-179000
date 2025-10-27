@@ -11,12 +11,12 @@ export default function ConfirmDialog({ open, title = 'Confirm', message, onCanc
       onClose={onCancel}
       footer={(
         <>
-          <button className="btn ghost" onClick={onCancel}>Cancel</button>
-          <button className="btn danger" onClick={onConfirm}>Confirm</button>
+          <button className="btn ghost" onClick={onCancel} aria-label="Cancel and close">Cancel</button>
+          <button className="btn danger" onClick={onConfirm} aria-label="Confirm action">Confirm</button>
         </>
       )}
     >
-      <p>{message}</p>
+      <p id="confirm-desc" role="note">{message}</p>
     </Modal>
   );
 }

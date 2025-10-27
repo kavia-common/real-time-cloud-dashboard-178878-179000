@@ -2,9 +2,11 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 /**
  * Theme context provides theme mode and Ocean Professional CSS variables injection.
- * Exposes toggleTheme to switch between light and dark modes.
+ * Exposes toggleTheme and setTheme, persists in localStorage, and defaults to prefers-color-scheme.
  */
 const ThemeContext = createContext(null);
+
+const STORAGE_KEY = 'theme_mode';
 
 const OCEAN_THEME_VARS = {
   '--color-primary': '#2563EB',
@@ -26,7 +28,17 @@ const OCEAN_DARK_OVERRIDES = {
 };
 
 export function ThemeProvider({ children }) {
-  const [mode, setMode] = useState(() => localStorage.getItem('theme_mode') || 'light');
+  const [mode, setMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch {}
+    // default to system preference
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  });
 
   useEffect(() => {
     const root = document.documentElement;
@@ -36,13 +48,17 @@ export function ThemeProvider({ children }) {
 
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
     root.setAttribute('data-theme', mode);
-    localStorage.setItem('theme_mode', mode);
+    try {
+      localStorage.setItem(STORAGE_KEY, mode);
+    } catch {}
   }, [mode]);
 
   const value = useMemo(() => ({
     mode,
     // PUBLIC_INTERFACE
     toggleTheme: () => setMode((m) => (m === 'light' ? 'dark' : 'light')),
+    // PUBLIC_INTERFACE
+    setTheme: (next) => setMode(next === 'dark' ? 'dark' : 'light'),
   }), [mode]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

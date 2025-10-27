@@ -145,10 +145,13 @@ export default function Activity() {
           </div>
         </div>
 
-        <div className="card-content">
+        <div className="card-content" aria-live="polite">
           {loading && (
             <div className="muted" role="status" aria-live="polite" style={{ marginBottom: 8 }}>
               Loading activity...
+              <div className="skeleton" style={{ height: 10, marginTop: 6 }} />
+              <div className="skeleton" style={{ height: 10, marginTop: 6 }} />
+              <div className="skeleton" style={{ height: 10, marginTop: 6 }} />
             </div>
           )}
 

@@ -226,7 +226,13 @@ export default function Users() {
               optimistic={{ pendingIds, errorIds }}
               initialPageSize={10}
             />
-            {loading ? <div className="muted" style={{ marginTop: 8 }}>Loading...</div> : null}
+            {loading ? (
+              <div className="muted" role="status" aria-live="polite" style={{ marginTop: 8 }}>
+                <div className="skeleton" style={{ height: 12, marginBottom: 8 }} />
+                <div className="skeleton" style={{ height: 12, marginBottom: 8 }} />
+                <div className="skeleton" style={{ height: 12 }} />
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="muted">You must be an admin to view users.</div>

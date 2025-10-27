@@ -23,7 +23,7 @@ export default function AppRoutes() {
     <div className="app">
       <Sidebar />
       <Topbar onMenu={() => setDrawer(true)} />
-      <main className="main">
+      <main className="main" role="main" aria-live="polite">
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route element={<RoleRoute roles={['admin', 'user']} />}>

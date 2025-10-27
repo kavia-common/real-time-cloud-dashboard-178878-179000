@@ -18,6 +18,9 @@ export default function Dashboard() {
   const [feed, setFeed] = useState([]);
   const { connected, subscribe } = useSocket('/metrics');
 
+  // loading states
+  const [loading, setLoading] = useState(true);
+
   // Stats returned by GET /metrics/stats:
   // { count: number, total: number, average: number, latest: [{ value:number, ts?:string }] }
   const [stats, setStats] = useState({ count: 0, total: 0, average: 0, latest: [] });
@@ -48,6 +51,8 @@ export default function Dashboard() {
       } catch {
         // best-effort fallback
         setChartData(makeZeroSeries(10));
+      } finally {
+        setLoading(false);
       }
     }
     loadStats();
@@ -111,11 +116,22 @@ export default function Dashboard() {
         <div className="dashboard-subtitle muted">Real-time system metrics and monitoring</div>
       </div>
 
-      <div className="grid stats">
-        <StatCard title="Samples" value={countDisplay} subtitle="Latest metric samples" icon="📦" />
-        <StatCard title="Total Value" value={totalDisplay} subtitle="Sum of latest values" icon="∑" />
-        <StatCard title="Average" value={avgDisplay} subtitle="Average of latest values" icon="𝐇" />
-        <StatCard title="Live Status" value={connected ? 'Live' : 'Offline'} subtitle="Socket connection" icon="🛰️" />
+      <div className="grid stats" aria-live="polite">
+        {loading ? (
+          <>
+            <div className="card" role="status" aria-label="Loading Samples"><div className="skeleton" style={{ height: 24 }} /></div>
+            <div className="card" role="status" aria-label="Loading Total Value"><div className="skeleton" style={{ height: 24 }} /></div>
+            <div className="card" role="status" aria-label="Loading Average"><div className="skeleton" style={{ height: 24 }} /></div>
+            <div className="card"><StatCard title="Live Status" value="..." subtitle="Socket connection" icon="🛰️" /></div>
+          </>
+        ) : (
+          <>
+            <StatCard title="Samples" value={countDisplay} subtitle="Latest metric samples" icon="📦" />
+            <StatCard title="Total Value" value={totalDisplay} subtitle="Sum of latest values" icon="∑" />
+            <StatCard title="Average" value={avgDisplay} subtitle="Average of latest values" icon="𝐇" />
+            <StatCard title="Live Status" value={connected ? 'Live' : 'Offline'} subtitle="Socket connection" icon="🛰️" />
+          </>
+        )}
       </div>
 
       <div className="grid two">
@@ -131,8 +147,13 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="card-content">
-              {/* Graceful fallback: chart still renders last-known series even if disconnected */}
-              <ChartLine data={chartData} height={300} color={connected ? 'var(--color-primary)' : 'var(--color-border-dark)'} title="Traffic" />
+              {loading ? (
+                <div role="status" aria-label="Loading chart">
+                  <div className="skeleton" style={{ height: 300 }} />
+                </div>
+              ) : (
+                <ChartLine data={chartData} height={300} color={connected ? 'var(--color-primary)' : 'var(--color-border-dark)'} title="Traffic" />
+              )}
             </div>
           </div>
         </div>
@@ -146,7 +167,13 @@ export default function Dashboard() {
           </div>
           <div className="card-content">
             <div className="feed-container" style={{ maxHeight: 320, overflowY: 'auto' }}>
-              {feed.length > 0 ? (
+              {loading ? (
+                <div role="status" aria-live="polite">
+                  <div className="skeleton" style={{ height: 56, marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 56, marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 56 }} />
+                </div>
+              ) : feed.length > 0 ? (
                 <div className="feed-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {feed.map((item) => (
                     <div key={item.id} className="feed-item" style={{ padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '10px', background: 'var(--color-surface)', boxShadow: 'var(--shadow-sm)' }}>
