@@ -23,6 +23,11 @@ import metricsRoutes from './routes/metrics.js';
  *  - /auth (POST /login, POST /register, GET /me)
  *  - /users (CRUD, admin restricted)
  *  - /metrics (GET /stats, GET /activity)
+ *
+ * Socket.IO:
+ *  - Namespaces: /metrics (emits metric:update), /users (placeholder)
+ *  - Path configurable via env.SOCKET_PATH; CORS set from env.CORS_ORIGIN
+ *  - initSockets sets up an internal ticker and cleanup handlers.
  */
 async function bootstrap() {
   // Validate environment configuration early
