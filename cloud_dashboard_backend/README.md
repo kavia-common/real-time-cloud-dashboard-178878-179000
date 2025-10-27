@@ -28,6 +28,31 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
    - Set a strong, unique `JWT_SECRET`
    - Optionally adjust `SOCKET_PATH` and `METRIC_TICK_MS`
    - IMPORTANT: `CORS_ORIGIN` must equal your frontend origin (e.g., http://localhost:3000) and `SOCKET_PATH` must equal the frontend `REACT_APP_SOCKET_PATH` (default `/socket.io`)
+   - DEFAULT_ADMIN_* variables are used to idempotently seed an admin on startup.
+
+2. Install dependencies
+   npm install
+
+3. Run in development
+   npm run dev
+
+   Server starts on PORT (default 4000) and exposes:
+   - GET /health -> {"status":"ok","time":"..."}
+   - Socket.IO on path SOCKET_PATH (default /socket.io)
+     - Namespaces: /metrics, /users
+
+4. Verify locally (sanity scripts)
+   - Ensure `jq` is installed.
+   - Auth flow:
+     ./scripts/sanity_auth.sh http://localhost:4000
+   - Admin + Users CRUD:
+     ./scripts/sanity_admin.sh http://localhost:4000
+   - Metrics endpoints:
+     ./scripts/sanity_metrics.sh http://localhost:4000
+
+Errors are always JSON:
+{ "error": "message" }
+With proper status codes (400, 401, 403, 404, 409, 500). CORS is restricted to CORS_ORIGIN and Socket.IO shares the same origin rule.
 
 2. Install dependencies
    npm install
