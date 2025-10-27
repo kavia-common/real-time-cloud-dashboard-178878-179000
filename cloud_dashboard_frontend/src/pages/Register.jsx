@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import DiagnosticsOverlay from '../components/ui/DiagnosticsOverlay.jsx';
+import { API_BASE_URL, API_PATH_PREFIX } from '../api/endpoints';
 
 export default function Register() {
   const { register, loading } = useAuth();
@@ -10,6 +12,7 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [touched, setTouched] = useState({});
   const [error, setError] = useState('');
+  const [showDiag, setShowDiag] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
 
   useEffect(() => {
@@ -512,7 +515,27 @@ export default function Register() {
             {error && (
               <div className="alert error" role="alert" aria-live="assertive">
                 <span className="alert-icon">!</span>
-                <span>{error}</span>
+                <span>
+                  {error}
+                  {(/Network error|CORS|blocked|timeout/i.test(error)) && (
+                    <>
+                      {' '}
+                      <br />
+                      <span className="small">
+                        Connection issue detected. Current base: {API_BASE_URL}, prefix: {API_PATH_PREFIX || '(none)'}.
+                        {' '}
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => setShowDiag(true)}
+                          style={{ marginLeft: 6 }}
+                        >
+                          Run diagnostics
+                        </button>
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
             )}
 
@@ -646,6 +669,9 @@ export default function Register() {
           </form>
         </div>
       </div>
+      {showDiag && (
+        <DiagnosticsOverlay open={showDiag} onClose={() => setShowDiag(false)} />
+      )}
     </div>
   );
 }

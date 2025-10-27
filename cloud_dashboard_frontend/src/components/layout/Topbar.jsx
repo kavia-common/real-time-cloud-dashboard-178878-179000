@@ -9,6 +9,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/theme.css';
+import DiagnosticsOverlay from '../ui/DiagnosticsOverlay.jsx';
+import { API_BASE_URL, API_PATH_PREFIX } from '../../api/endpoints';
 
 /**
  * Props:
@@ -62,6 +64,16 @@ export default function Topbar({ title = 'Cloud Dashboard', onMenu, rightActions
 
   const handleToggleMenu = () => setMenuOpen((v) => !v);
 
+  // Diagnostics overlay
+  const [diagOpen, setDiagOpen] = useState(false);
+  useEffect(() => {
+    // Log resolved config to help diagnose preview routing issues
+    // eslint-disable-next-line no-console
+    console.info('[Topbar] Resolved API config -> base:', API_BASE_URL, 'prefix:', API_PATH_PREFIX || '(none)');
+    // eslint-disable-next-line no-console
+    console.info('[Topbar] Socket -> url:', process.env.REACT_APP_SOCKET_URL || '(not set)', 'path:', process.env.REACT_APP_SOCKET_PATH || '/socket.io');
+  }, []);
+
   return (
     <header
       className="topbar"
@@ -98,7 +110,19 @@ export default function Topbar({ title = 'Cloud Dashboard', onMenu, rightActions
 
       {/* Right cluster: custom actions + user menu */}
       <div className="topbar-right">
-        <div className="actions">{rightActions}</div>
+        <div className="actions">
+          {rightActions}
+          <button
+            type="button"
+            className="btn ghost"
+            style={{ marginLeft: 8 }}
+            title="Open diagnostics"
+            aria-label="Open diagnostics"
+            onClick={() => setDiagOpen(true)}
+          >
+            Diagnostics
+          </button>
+        </div>
 
         {user ? (
           <div className="user-area">
@@ -167,6 +191,16 @@ export default function Topbar({ title = 'Cloud Dashboard', onMenu, rightActions
           </div>
         )}
       </div>
+      {diagOpen && (
+        <DiagnosticsOverlay
+          open={diagOpen}
+          onClose={() => setDiagOpen(false)}
+          onResolvedBase={(cfg) => {
+            // eslint-disable-next-line no-console
+            console.info('[Diagnostics] Working backend detected:', cfg);
+          }}
+        />
+      )}
     </header>
   );
 }

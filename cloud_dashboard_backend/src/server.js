@@ -35,8 +35,8 @@ async function bootstrap() {
   const allowedOrigin = env.CORS_ORIGIN;
   const corsConfig = {
     origin(origin, callback) {
-      // Allow requests with no Origin (health checks, curl) and exact allowed origin
-      if (!origin || origin === allowedOrigin) return callback(null, true);
+      // Allow '*' (when enabled), exact origin match, or requests with no Origin (curl/health)
+      if (allowedOrigin === '*' || !origin || origin === allowedOrigin) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: false,
@@ -68,6 +68,25 @@ async function bootstrap() {
   // Health endpoints (legacy + /api)
   app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+  // Lightweight debug info for preview/diagnostics
+  // PUBLIC_INTERFACE
+  app.get('/api/debug/info', (req, res) => {
+    res.json({
+      ok: true,
+      time: new Date().toISOString(),
+      server: {
+        port: env.PORT,
+        corsOrigin: allowedOrigin,
+        socketPath: env.SOCKET_PATH,
+      },
+      process: {
+        node: process.version,
+        env: process.env.NODE_ENV || 'development',
+      },
+      routes: ['/health', '/api/health', '/api/echo', '/auth/*', '/api/auth/*', '/users/*', '/api/users/*', '/metrics/*', '/api/metrics/*'],
+    });
+  });
 
   // Simple echo for network/CORS diagnostics (legacy under auth router, and top-level /api/echo)
   app.get('/api/echo', (req, res) => {

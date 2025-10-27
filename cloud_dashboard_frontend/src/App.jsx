@@ -55,6 +55,8 @@ function App() {
     // Diagnostics to console
     // eslint-disable-next-line no-console
     console.info('[Startup] API_BASE_URL=', API_BASE_URL, 'API_PATH_PREFIX=', API_PATH_PREFIX || '(none)');
+    // eslint-disable-next-line no-console
+    console.info('[Startup] SOCKET_URL=', process.env.REACT_APP_SOCKET_URL || '(not set)', 'SOCKET_PATH=', process.env.REACT_APP_SOCKET_PATH || '/socket.io');
 
     probe();
     return () => {
