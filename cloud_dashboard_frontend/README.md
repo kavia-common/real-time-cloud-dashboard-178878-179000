@@ -16,9 +16,14 @@ Create a `.env` file at project root (copy from `.env.example`):
 
 ```
 REACT_APP_API_BASE_URL=http://localhost:4000
+REACT_APP_API_PATH_PREFIX=/api
 REACT_APP_SOCKET_URL=http://localhost:4000
 REACT_APP_SOCKET_PATH=/socket.io
 ```
+
+Notes:
+- If `REACT_APP_API_PATH_PREFIX` is not set, it defaults to `/api`.
+- The frontend will log a warning when `REACT_APP_API_BASE_URL` is missing and will default to `http://localhost:4000`.
 
 ## Scripts
 
@@ -62,3 +67,14 @@ The app will run at http://localhost:3000.
 
 - Ensure the backend uses the same Socket.IO path as the frontend's `REACT_APP_SOCKET_PATH` (default `/socket.io`) and that the backend `CORS_ORIGIN` matches the frontend origin (default `http://localhost:3000`).
 - JWT is stored in `localStorage` under `rtcd_access_token`. If changed on the backend, update `src/api/http.js`.
+
+## Connectivity Quick-Fix
+
+- All API calls use a centralized axios instance with a base URL of `${REACT_APP_API_BASE_URL}/${REACT_APP_API_PATH_PREFIX}` (default prefix `/api`).
+- On startup, the app pings `/api/health` and `/api/auth/echo`. If unreachable, a banner is shown with actionable guidance.
+- If requests are blocked by an ad/tracker blocker, temporarily disable it for this site or ensure your backend paths are under `/api`.
+- Confirm `.env` values:
+  - `REACT_APP_API_BASE_URL` points to your backend (e.g., http://localhost:4000).
+  - `REACT_APP_API_PATH_PREFIX` is `/api`.
+- Service worker is explicitly unregistered to avoid no-op fetch handler warnings during development.
+- A default `public/favicon.ico` is included to prevent 404 noise.

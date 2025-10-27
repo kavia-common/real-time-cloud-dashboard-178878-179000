@@ -33,12 +33,14 @@ export const setAccessToken = (token) => {
 
  // Create axios instance (always use baseURL)
  const http = axios.create({
+   // Always use baseURL and ensure a leading slash before the prefix
    baseURL: API_BASE_URL + (API_PATH_PREFIX ? `/${API_PATH_PREFIX.replace(/^\/*/, '')}` : ''),
    withCredentials: true,
    timeout: 10000, // 10s request timeout
    // Explicit default headers to avoid CORS preflight surprises on simple requests where possible
    headers: {
      'X-Requested-With': 'XMLHttpRequest',
+     'Accept': 'application/json',
    },
  });
 
