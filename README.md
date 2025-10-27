@@ -58,6 +58,7 @@ Backend (port 4000)
 - npm install
 - npm run dev
 - Health: GET http://localhost:4000/health -> {"status":"ok","time":"..."}
+- Echo:   GET http://localhost:4000/auth/echo -> {"ok":true,"time":"...","origin":"http://localhost:3000", "path":"/auth/echo"}
 
 Frontend (port 3000)
 - cd cloud_dashboard_frontend

@@ -7,12 +7,16 @@ export function authRequired(req, res, next) {
   /** Express middleware to validate Bearer JWT and attach req.user. */
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) {
+    console.warn('[auth] missing bearer token');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
+    console.warn('[auth] invalid token:', err?.message || err);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
@@ -26,17 +30,28 @@ export function signUserToken(user) {
 
 // PUBLIC_INTERFACE
 export async function ensureDefaultAdmin() {
-  /** Ensure a default admin user exists based on environment defaults. */
-  const existing = await User.findOne({ email: env.DEFAULT_ADMIN_EMAIL }).select('_id');
+  /** Ensure a default admin user exists based on environment defaults. Idempotent. */
+  const email = String(env.DEFAULT_ADMIN_EMAIL || '').toLowerCase().trim();
+  if (!email) {
+    console.warn('[auth] DEFAULT_ADMIN_EMAIL not set; skipping admin bootstrap');
+    return;
+  }
+  const existing = await User.findOne({ email }).select('_id');
   if (existing) return;
 
-  const passwordHash = await User.hashPassword(env.DEFAULT_ADMIN_PASSWORD);
+  const password = String(env.DEFAULT_ADMIN_PASSWORD || '');
+  if (!password || password.length < 6) {
+    console.warn('[auth] DEFAULT_ADMIN_PASSWORD too weak or not set; skipping admin bootstrap');
+    return;
+  }
+
+  const passwordHash = await User.hashPassword(password);
   await User.create({
-    name: env.DEFAULT_ADMIN_NAME,
-    email: env.DEFAULT_ADMIN_EMAIL,
+    name: env.DEFAULT_ADMIN_NAME || 'Administrator',
+    email,
     passwordHash,
     role: 'admin',
     status: 'active'
   });
-  console.log(`[auth] Default admin ensured: ${env.DEFAULT_ADMIN_EMAIL}`);
+  console.log(`[auth] Default admin ensured: ${email}`);
 }

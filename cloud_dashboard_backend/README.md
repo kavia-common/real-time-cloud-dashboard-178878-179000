@@ -141,6 +141,8 @@ A ready-to-use template is available at `.env.example`. Copy it to `.env` and fi
 
 - GET /health
   - Returns `{ status: "ok", time: ISOString }`.
+- GET /auth/echo
+  - Returns `{ ok: true, time, origin, path }` without auth. Useful to diagnose CORS/adblock/network issues quickly.
 
 ## Frontend Integration
 

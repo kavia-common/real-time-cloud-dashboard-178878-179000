@@ -19,7 +19,7 @@ import metricsRoutes from './routes/metrics.js';
  * Creates and starts the HTTP server with Express and Socket.IO.
  * Routes:
  *  - GET /health               Health check
- *  - /auth (POST /login, POST /register, GET /me, POST /logout)
+ *  - /auth (POST /login, POST /register, GET /me, POST /logout, GET /echo)
  *  - /users (CRUD, admin restricted)
  *  - /metrics (GET /stats, GET /activity)
  */
@@ -28,11 +28,15 @@ async function bootstrap() {
 
   // Security and utilities
   app.use(helmet());
+  // CORS: restrict to configured origin and support credentials
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
   // Handle preflight globally
   app.options('*', cors({ origin: env.CORS_ORIGIN, credentials: true }));
-  app.use(express.json({ limit: '1mb' }));
+  // Strict JSON parser with error handler
+  app.use(express.json({ limit: '1mb', strict: true }));
+  // Access logging
   app.use(morgan('dev'));
+  // Rate limiter
   app.use(
     rateLimit({
       windowMs: 60 * 1000,
@@ -63,8 +67,9 @@ async function bootstrap() {
   // Ensures consistent 500 response structure and hides stack in production
   // PUBLIC_INTERFACE
   app.use((err, req, res, next) => {
+    const path = `${req.method} ${req.originalUrl}`;
     // eslint-disable-next-line no-console
-    console.error('[error]', err?.message || err);
+    console.error('[error]', path, err?.message || err);
     if (res.headersSent) return next(err);
     const status = err.status || 500;
     const payload = {
@@ -83,6 +88,24 @@ async function bootstrap() {
 
   // Database connect and default admin
   await connectDB();
+
+  // Quick DB/index self-check (non-fatal): validates models/indexes are usable
+  try {
+    // Ensure indexes are built for critical collections
+    const { User } = await import('./models/User.js');
+    const { Activity } = await import('./models/Activity.js');
+    const { Metric } = await import('./models/Metric.js');
+    await Promise.all([
+      User.syncIndexes(),
+      Activity.syncIndexes(),
+      Metric.syncIndexes(),
+    ]);
+    console.log('[db] index sync completed');
+  } catch (e) {
+    console.warn('[db] index sync warning:', e?.message || e);
+  }
+
+  // Idempotent admin seeding after successful DB connection
   await ensureDefaultAdmin();
 
   server.listen(env.PORT, () => {
