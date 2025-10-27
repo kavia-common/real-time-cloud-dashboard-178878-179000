@@ -13,7 +13,7 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
   - /metrics: emits `metric:update` periodically
   - /users: placeholder for user-related realtime events
 - MongoDB (Mongoose)
-  - Models: User, Activity, Metric
+  - Models: User, Activity, Metric with validations and indexes
 - Security middlewares: helmet, rate-limiter, CORS
 - Default admin bootstrap from environment variables
 
@@ -22,9 +22,10 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 1. Copy env and fill in variables
    cp .env.example .env
 
-   - Set `MONGODB_URI` to your MongoDB Atlas connection string (see "MongoDB Atlas Setup" below for details).
+   - Set `MONGODB_URI` to your MongoDB Atlas connection string (see "MongoDB Atlas Setup" below).
    - Set `CORS_ORIGIN` to your frontend URL (development: http://localhost:3000)
    - Set a strong, unique `JWT_SECRET`
+   - Optionally adjust `SOCKET_PATH` and `METRIC_TICK_MS`
 
 2. Install dependencies
    npm install
@@ -39,54 +40,57 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 
 ## MongoDB Atlas Setup
 
-This app uses Mongoose to connect to MongoDB. The connection is established in `src/config/db.js` via the exported `connectDB()` function, which uses the `MONGODB_URI` environment variable.
+The connection is established in `src/config/db.js` via `connectDB()` which reads `MONGODB_URI`.
 
-Follow these steps to connect to Atlas:
+Steps:
 
 1) Create a Cluster (Atlas)
 - Sign in to https://www.mongodb.com/atlas and create a free/shared cluster.
 
 2) Create a Database User
-- Go to Database Access -> Add new database user.
-- Authentication method: Password.
-- Set a username and a strong password.
-- Grant role "Atlas admin" or "Read and write to any database" (sufficient for this app).
-- Save the credentials; they are used in your URI.
+- Database Access -> Add new database user (Password auth).
+- Save username/password for URI.
 
 3) Configure Network Access
-- Go to Network Access -> Add IP address.
-- For local development, use "Allow Access From Anywhere" (0.0.0.0/0).
-  - In production, restrict to known IPs only.
-- If using VPC peering or Private Endpoint, configure accordingly.
+- Network Access -> Add IP address.
+- For local dev you may use "Allow Access From Anywhere" (0.0.0.0/0).
+  - Restrict IPs in production.
 
 4) Obtain the SRV Connection String
-- From Database -> Connect -> Drivers -> Copy the SRV URI.
-- Example format (replace placeholders):
+- Database -> Connect -> Drivers -> Copy SRV URI.
+- Example:
   mongodb+srv://<username>:<password>@<cluster-host>/<db-name>?retryWrites=true&w=majority&appName=CloudDashboard
 
 Notes:
-- The SRV scheme (mongodb+srv://) uses DNS to resolve your cluster. It's recommended for Atlas.
-- Keep `retryWrites=true&w=majority` for safe defaults; Atlas will include them by default.
-- `appName` is optional but recommended for identifying this application in logs/metrics.
-- If your password contains special characters, URL-encode it in the URI.
+- Use SRV (mongodb+srv://) where possible.
+- URL-encode special characters in password.
+- Keep `retryWrites=true&w=majority`.
+- `appName` helps identify this app in logs.
 
-5) Put the URI in .env
-- Open `.env` and set:
-  MONGODB_URI="mongodb+srv://<username>:<password>@<cluster-host>/<db-name>?retryWrites=true&w=majority&appName=CloudDashboard"
-- Do not commit real credentials to source control.
+5) Put the URI in `.env`
+- MONGODB_URI="mongodb+srv://<username>:<password>@<cluster-host>/<db-name>?retryWrites=true&w=majority&appName=CloudDashboard"
 
 6) Start the backend
 - npm run dev
-- On successful connection you will see logs from `connectDB()` like:
-  [db] connected
+- You should see `[db] connected` on success.
 
 Troubleshooting:
-- Authentication failed: Verify username/password and that the database user exists.
-- IP not whitelisted: Ensure your current IP is allowed under Network Access.
-- DNS/SRV errors: Ensure your environment can resolve SRV records (mongodb+srv) and outbound network access is allowed.
-- Local MongoDB alternative: You can also use a local URI such as mongodb://localhost:27017/cloud_dashboard (default in code if env is missing), but Atlas is recommended.
+- Auth failed: check user and password; ensure user has needed roles.
+- IP not allowed: whitelist your IP in Network Access.
+- DNS/SRV errors: ensure your environment allows DNS lookups and outbound 27017.
+- Local alternative: mongodb://localhost:27017/cloud_dashboard is supported for local dev.
+
+### Connection Robustness
+
+- The `connectDB()` function includes:
+  - Timeouts (server selection/socket)
+  - Pooled connections
+  - Exponential backoff retries on startup
+  - Graceful shutdown on SIGINT/SIGTERM
 
 ## Environment Variables
+
+A ready-to-use template is available at `.env.example`. Copy it to `.env` and fill values.
 
 - PORT: HTTP port (default 4000)
 - MONGODB_URI: MongoDB connection URI (Atlas recommended). Example:
@@ -97,24 +101,19 @@ Troubleshooting:
 - METRIC_TICK_MS: Interval (ms) for emitting metric updates (default 3000)
 - DEFAULT_ADMIN_NAME / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD: Admin user bootstrapped on startup
 
-See .env.example for a complete, copyable template.
-
 ## CORS and Socket Path
 
 - CORS:
-  - Backend will allow requests from `CORS_ORIGIN` and set `credentials: true`.
-  - For local dev with CRA: set `CORS_ORIGIN=http://localhost:3000`
-
-- Socket.IO path and namespaces:
-  - Path is configurable via `SOCKET_PATH` (default `/socket.io`)
-  - Namespaces used: `/metrics`, `/users`
-  - The frontend may optionally set `REACT_APP_SOCKET_PATH` to match custom paths.
+  - Backend allows requests from `CORS_ORIGIN` with `credentials: true`.
+- Socket.IO:
+  - Configurable path via `SOCKET_PATH` (default `/socket.io`).
+  - Namespaces: `/metrics`, `/users`.
+  - Ensure frontend `REACT_APP_SOCKET_PATH` matches if you change it.
 
 ## Health Check
 
 - GET /health
-  - Returns a simple JSON payload with current time.
-  - Intended for readiness probes and basic liveness checks.
+  - Returns `{ status: "ok", time: ISOString }`.
 
 ## Frontend Integration
 
@@ -142,4 +141,4 @@ Metrics:
 
 ## Notes
 
-This is a working skeleton. Extend validations, error handling, and production configs (logging, CORS rules, secure cookies, rate limits, etc.) before deployment.
+This is a working skeleton. Extend validations, error handling, and production configs (structured logging, strict CORS rules, secure cookies, rate limits, etc.) before deployment.
