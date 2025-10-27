@@ -1,42 +1,55 @@
-//
-// API endpoints mapping
-// Keep simple and aligned with backend Express routers
-//
+import http from './http';
 
-const API_BASE = process.env.REACT_APP_API_BASE_URL || '';
-
-const makePath = (base, path = '') => {
-  const trimmed = `${base}`.replace(/\/+$/, '');
-  const suffix = path ? `/${path.replace(/^\/+/, '')}` : '';
-  return `${trimmed}${suffix}`;
+/**
+ * PUBLIC_INTERFACE
+ * Centralized API endpoint paths for the backend.
+ * These are relative paths; the http client injects the baseURL and Authorization header.
+ */
+export const endpoints = {
+  auth: {
+    login: '/auth/login',
+    register: '/auth/register',
+    me: '/auth/me',
+  },
+  users: {
+    root: '/users',
+    byId: (id) => `/users/${id}`,
+  },
+  metrics: {
+    stats: '/metrics/stats',
+    activity: '/metrics/activity',
+  },
 };
 
-/* PUBLIC_INTERFACE: Endpoints mapping for backend REST API */
-export const endpoints = {
-  base: API_BASE,
+/**
+ * PUBLIC_INTERFACE
+ * Thin API helpers for calling backend routes with types and response shapes documented.
+ */
+export const apiAuth = {
+  /** Login with credentials. Returns { user, token } */
+  login: (payload) => http.post(endpoints.auth.login, payload),
+  /** Register user. Returns { user, token } */
+  register: (payload) => http.post(endpoints.auth.register, payload),
+  /** Validate current session, returns { user } */
+  me: () => http.get(endpoints.auth.me),
+};
 
-  // Auth routes
-  auth: {
-    base: makePath(API_BASE, '/auth'),
-    login: makePath(API_BASE, '/auth/login'),
-    register: makePath(API_BASE, '/auth/register'),
-    me: makePath(API_BASE, '/auth/me'),
-  },
+export const apiUsers = {
+  /** List users with optional query params */
+  list: (params) => http.get(endpoints.users.root, { params }),
+  /** Create a new user */
+  create: (payload) => http.post(endpoints.users.root, payload),
+  /** Update user by id */
+  update: (id, payload) => http.put(endpoints.users.byId(id), payload),
+  /** Delete user by id */
+  remove: (id) => http.delete(endpoints.users.byId(id)),
+};
 
-  // Users routes
-  users: {
-    base: makePath(API_BASE, '/users'),
-    byId: (id) => makePath(API_BASE, `/users/${id}`),
-  },
-
-  // Metrics routes
-  metrics: {
-    base: makePath(API_BASE, '/metrics'),
-    latest: makePath(API_BASE, '/metrics/latest'),
-    stats: makePath(API_BASE, '/metrics/stats'),
-    activity: makePath(API_BASE, '/metrics/activity'),
-    byId: (id) => makePath(API_BASE, `/metrics/${id}`),
-  },
+export const apiMetrics = {
+  /** Fetch aggregate stats for dashboard */
+  stats: (params) => http.get(endpoints.metrics.stats, { params }),
+  /** Fetch activity feed */
+  activity: (params) => http.get(endpoints.metrics.activity, { params }),
 };
 
 export default endpoints;

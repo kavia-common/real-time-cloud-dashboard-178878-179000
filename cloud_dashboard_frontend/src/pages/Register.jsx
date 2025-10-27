@@ -1,63 +1,82 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import '../styles/theme.css';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import Button from '../components/ui/Button.tsx';
+import Input from '../components/ui/Input.tsx';
 
-export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [error, setError] = useState('');
-  const { register, loading } = useAuth();
+const Register = () => {
+  const { register: registerUser } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [params] = useSearchParams();
+  const next = params.get('next') || '/';
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const onChange = (e) => {
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    if (error) setError('');
+  };
+
+  const validate = () => {
+    if (!form.name) return 'Name is required.';
+    if (!form.email) return 'Email is required.';
+    if (!form.password || form.password.length < 6)
+      return 'Password must be at least 6 characters.';
+    return '';
+  };
+
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
+    }
+    setSubmitting(true);
     try {
-      await register(form.name, form.email, form.password);
-      const qsFrom = new URLSearchParams(location.search).get('from');
-      const to = qsFrom || '/';
-      navigate(to, { replace: true });
+      await registerUser(form.name, form.email, form.password);
+      navigate(next);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Registration failed');
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Registration failed. Please review your input.';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <form className="card auth" onSubmit={handleSubmit}>
-        <h2>Create account</h2>
-        <p className="muted">Join the platform</p>
-        {error ? <div className="badge warn" role="alert">{error}</div> : null}
-        <label>Name</label>
-        <input
-          type="text"
-          required
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Jane Doe"
-        />
-        <label>Email</label>
-        <input
-          type="email"
-          required
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-          placeholder="you@example.com"
-        />
-        <label>Password</label>
-        <input
+    <div className="min-h-screen grid place-items-center bg-gray-50">
+      <form onSubmit={onSubmit} className="bg-white p-6 rounded shadow w-full max-w-md space-y-4">
+        <h1 className="text-xl font-semibold">Create account</h1>
+        {error && <div className="text-red-600 text-sm">{error}</div>}
+        <Input label="Name" name="name" value={form.name} onChange={onChange} required />
+        <Input label="Email" name="email" type="email" value={form.email} onChange={onChange} required />
+        <Input
+          label="Password"
+          name="password"
           type="password"
-          required
           value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-          placeholder="••••••••"
+          onChange={onChange}
+          required
         />
-        <button className="btn primary" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Register'}</button>
-        <p className="muted small">
-          Have an account? <Link to="/login">Sign in</Link>
-        </p>
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Creating...' : 'Create account'}
+        </Button>
+        <div className="text-sm text-gray-600">
+          Already have an account?{' '}
+          <Link className="text-blue-600" to="/login">
+            Sign in
+          </Link>
+        </div>
       </form>
     </div>
   );
-}
+};
+
+export default Register;

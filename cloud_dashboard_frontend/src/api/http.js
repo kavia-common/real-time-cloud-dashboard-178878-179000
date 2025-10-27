@@ -1,61 +1,88 @@
 import axios from 'axios';
-import { endpoints } from './endpoints';
 
-// A lightweight in-memory auth store to decouple axios from React imports directly.
-// AuthContext will register itself here to allow 401 handling without circular deps.
-const authBridge = {
-  getToken: null,
-  onUnauthorized: null,
-};
+/**
+ * Axios HTTP client with:
+ * - Base URL from REACT_APP_API_BASE_URL
+ * - Authorization Bearer token injection
+ * - Global 401 handling -> broadcast unauthorized and redirect to /login
+ */
 
-// PUBLIC_INTERFACE
-export function registerAuthBridge({ getToken, onUnauthorized }) {
-  /**
-   * Register callbacks used by the HTTP client to fetch token and handle 401s.
-   * - getToken(): returns current auth token string or null
-   * - onUnauthorized(): triggers logout flow and state reset
-   */
-  authBridge.getToken = typeof getToken === 'function' ? getToken : null;
-  authBridge.onUnauthorized = typeof onUnauthorized === 'function' ? onUnauthorized : null;
+// Simple listener registry to notify AuthContext on unauthorized without coupling
+const listeners = new Set();
+
+/**
+ * PUBLIC_INTERFACE
+ * Subscribe to global auth events (e.g., 'unauthorized').
+ * Returns an unsubscribe function.
+ */
+export function subscribeAuth(listener) {
+  /** Subscribe to unauthorized/logout notifications. Returns unsubscribe fn. */
+  if (typeof listener === 'function') {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }
+  return () => {};
 }
 
-// Create axios instance with base URL
+function emitUnauthorized() {
+  listeners.forEach((l) => {
+    try {
+      l('unauthorized');
+    } catch {
+      // ignore listener errors
+    }
+  });
+}
+
+// Determine base URL from environment
+const BASE_URL =
+  process.env.REACT_APP_API_BASE_URL && process.env.REACT_APP_API_BASE_URL.trim().length > 0
+    ? process.env.REACT_APP_API_BASE_URL
+    : 'http://localhost:4000/api';
+
 const http = axios.create({
-  baseURL: endpoints.base,
+  baseURL: BASE_URL,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false,
 });
 
-// Request interceptor: attach Authorization Bearer token if available
+// Request: inject Bearer token if present in localStorage
 http.interceptors.request.use(
   (config) => {
     try {
-      const token = authBridge.getToken ? authBridge.getToken() : null;
+      const token = localStorage.getItem('auth_token');
       if (token) {
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch {
-      // Non-blocking: if token retrieval fails, continue without Authorization header
+      // ignore storage issues
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: auto logout on 401
+// Response: handle 401 by clearing storage, emitting event, and redirecting to /login
 http.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
     if (status === 401) {
-      if (typeof authBridge.onUnauthorized === 'function') {
-        try {
-          authBridge.onUnauthorized();
-        } catch {
-          // swallow to avoid breaking error pipeline
+      try {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+      } catch {
+        // ignore
+      }
+      emitUnauthorized();
+      if (typeof window !== 'undefined') {
+        const current = window.location.pathname + window.location.search;
+        const next = encodeURIComponent(current);
+        if (window.location.pathname !== '/login') {
+          window.location.href = `/login?next=${next}`;
         }
       }
     }
