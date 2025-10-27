@@ -1,71 +1,43 @@
+/**
+ * useSocket - Hook to manage Socket.IO connection for real-time metrics.
+ * Connects to the /metrics namespace using env-configured URL and path.
+ *
+ * Env:
+ * - REACT_APP_SOCKET_URL (e.g., http://localhost:4000)
+ * - REACT_APP_SOCKET_PATH (default: /socket.io)
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
-/**
- * PUBLIC_INTERFACE
- * useSocket
- * A React hook that creates and manages a Socket.IO client connection.
- *
- * Env support:
- * - REACT_APP_SOCKET_URL (required): e.g. https://api.example.com
- * - REACT_APP_SOCKET_PATH (optional): must match backend SOCKET_PATH, defaults to '/socket.io'
- *
- * Namespace support:
- * - Pass a namespace string like '/metrics' or '/notifications'.
- *
- * Exposes:
- * - socket: the underlying socket instance (nullable until connected once)
- * - connected: boolean connection state
- * - connecting: boolean initial/attempting state
- * - error: last connection error if any
- * - subscribe(event, handler): add listener, returns unsubscribe
- * - emit(event, payload): send event
- */
-export default function useSocket(namespace = '/') {
-  const baseUrl = process.env.REACT_APP_SOCKET_URL || '';
-  const path = process.env.REACT_APP_SOCKET_PATH || '/socket.io';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_PATH = process.env.REACT_APP_SOCKET_PATH || '/socket.io';
 
+// PUBLIC_INTERFACE
+export function useSocket(namespace = '/metrics', opts = {}) {
+  /**
+   * Connect to a Socket.IO namespace with options.
+   * Returns { socket, connected, error }.
+   */
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
-  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!baseUrl) {
-      // Fail fast but keep hook stable in dev if env missing.
-      setError(new Error('Missing REACT_APP_SOCKET_URL'));
-      setConnected(false);
-      setConnecting(false);
-      return () => {};
-    }
-
-    setError(null);
-    setConnecting(true);
-
-    // Construct target including namespace to ensure proper namespaced connection.
-    const target = `${baseUrl}${namespace}`;
-    const socket = io(target, {
-      autoConnect: true,
+    const socket = io(`${SOCKET_URL}${namespace}`, {
+      path: SOCKET_PATH,
       transports: ['websocket', 'polling'],
-      path,
-      withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      ...opts,
     });
-
     socketRef.current = socket;
 
-    const onConnect = () => {
-      setConnected(true);
-      setConnecting(false);
-    };
-    const onDisconnect = () => {
-      setConnected(false);
-      // keep connecting false; socket.io will auto-reconnect
-    };
-    const onConnectError = (err) => {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setConnecting(false);
-      setConnected(false);
-    };
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+    const onConnectError = (err) => setError(err);
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -75,31 +47,9 @@ export default function useSocket(namespace = '/') {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
-      socket.disconnect();
+      socket.close();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseUrl, namespace, path]);
+  }, [namespace, opts]);
 
-  // PUBLIC_INTERFACE
-  const subscribe = (event, handler) => {
-    /** Subscribes to a socket event; returns unsubscribe function. */
-    if (!socketRef.current) return () => {};
-    socketRef.current.on(event, handler);
-    return () => socketRef.current?.off(event, handler);
-  };
-
-  // PUBLIC_INTERFACE
-  const emit = (event, payload) => {
-    /** Emits an event with payload. */
-    socketRef.current?.emit(event, payload);
-  };
-
-  return {
-    socket: socketRef.current,
-    connected,
-    connecting,
-    error,
-    subscribe,
-    emit,
-  };
+  return { socket: socketRef.current, connected, error };
 }

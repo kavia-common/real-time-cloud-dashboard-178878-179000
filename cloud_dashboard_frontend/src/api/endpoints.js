@@ -1,41 +1,35 @@
-//
-// API endpoints mapping
-// Keep simple and aligned with backend Express routers
-//
+/**
+ * API endpoints mapping to backend routes.
+ * Ensure REACT_APP_API_BASE_URL in .env points to backend (e.g., http://localhost:4000).
+ */
 
-const API_BASE = process.env.REACT_APP_API_BASE_URL || '';
+// PUBLIC_INTERFACE
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
 
-const makePath = (base, path = '') => {
-  const trimmed = `${base}`.replace(/\/+$/, '');
-  const suffix = path ? `/${path.replace(/^\/+/, '')}` : '';
-  return `${trimmed}${suffix}`;
-};
+const withBase = (path) => `${API_BASE_URL}${path}`;
 
-/* PUBLIC_INTERFACE: Endpoints mapping for backend REST API */
+// PUBLIC_INTERFACE
 export const endpoints = {
-  base: API_BASE,
-
-  // Auth routes
+  // Auth
   auth: {
-    base: makePath(API_BASE, '/auth'),
-    login: makePath(API_BASE, '/auth/login'),
-    register: makePath(API_BASE, '/auth/register'),
-    me: makePath(API_BASE, '/auth/me'),
+    login: withBase('/auth/login'),
+    register: withBase('/auth/register'),
+    me: withBase('/auth/me'),
+    logout: withBase('/auth/logout'),
   },
 
-  // Users routes
+  // Users (admin-only)
   users: {
-    base: makePath(API_BASE, '/users'),
-    byId: (id) => makePath(API_BASE, `/users/${id}`),
+    list: withBase('/users'),
+    create: withBase('/users'),
+    detail: (id) => withBase(`/users/${id}`),
+    update: (id) => withBase(`/users/${id}`),
+    delete: (id) => withBase(`/users/${id}`),
   },
 
-  // Metrics routes
+  // Metrics
   metrics: {
-    base: makePath(API_BASE, '/metrics'),
-    latest: makePath(API_BASE, '/metrics/latest'),
-    stats: makePath(API_BASE, '/metrics/stats'),
-    byId: (id) => makePath(API_BASE, `/metrics/${id}`),
+    stats: withBase('/metrics/stats'),
+    activity: withBase('/metrics/activity'),
   },
 };
-
-export default endpoints;

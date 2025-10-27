@@ -1,43 +1,34 @@
-import React, { useState } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+/**
+ * Topbar - header with user profile and actions.
+ */
+
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import useSocket from '../../hooks/useSocket';
-import LiveIndicator from '../ui/LiveIndicator';
-import '../../styles/theme.css';
 
-export default function Topbar({ onMenu }) {
-  const { mode, toggleTheme } = useTheme();
+export default function Topbar() {
   const { user, logout } = useAuth();
-  const [open, setOpen] = useState(false);
-
-  // Show global live status for metrics namespace by default.
-  const { connected } = useSocket('/metrics');
-
-  const handleLogout = () => {
-    setOpen(false);
-    logout();
-  };
 
   return (
-    <header className="topbar">
-      <button className="icon-btn mobile-only" onClick={onMenu} aria-label="Open menu">☰</button>
-      <div className="spacer" />
-      <div className="topbar-actions">
-        <LiveIndicator connected={connected} className="mr-2" />
-        <button className="btn ghost" onClick={toggleTheme} aria-label="Toggle theme">
-          {mode === 'light' ? '🌙' : '☀️'}
-        </button>
-        <div className="profile" onBlur={() => setOpen(false)} tabIndex={0}>
-          <button className="btn" onClick={() => setOpen((o) => !o)}>
-            {user?.name || 'Guest'}
-          </button>
-          {open && (
-            <div className="menu">
-              <a href="/profile">Profile</a>
-              <button className="link-btn" onClick={handleLogout}>Logout</button>
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4">
+      <div className="font-medium text-gray-900">Real-Time Cloud Dashboard</div>
+      <div className="flex items-center gap-4">
+        {user && (
+          <>
+            <div className="text-sm text-gray-700">
+              <span className="font-medium">{user.name}</span>
+              <span className="text-gray-400"> • </span>
+              <span className="uppercase text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                {user.role}
+              </span>
             </div>
-          )}
-        </div>
+            <button
+              onClick={logout}
+              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Logout
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

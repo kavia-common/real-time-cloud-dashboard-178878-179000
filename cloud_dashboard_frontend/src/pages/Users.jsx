@@ -1,148 +1,165 @@
+/**
+ * Users - admin-only user management.
+ * - List users
+ * - Create, Update, Delete users
+ */
+
 import React, { useEffect, useMemo, useState } from 'react';
-import DataTable from '../components/ui/DataTable';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
 import http from '../api/http';
-import endpoints from '../api/endpoints';
+import { endpoints } from '../api/endpoints';
+import Card from '../components/ui/Card.tsx';
+import Button from '../components/ui/Button.tsx';
+import Modal from '../components/ui/Modal';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import DataTable from '../components/ui/DataTable';
+import Input from '../components/ui/Input.tsx';
 import { useAuth } from '../context/AuthContext';
-import '../styles/theme.css';
+
+const emptyForm = { name: '', email: '', password: '', role: 'user' };
 
 export default function Users() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [editing, setEditing] = useState(null);
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', role: 'user', status: 'active', password: '' });
-  const [toDelete, setToDelete] = useState(null);
 
-  async function fetchUsers() {
+  const loadUsers = async () => {
     setLoading(true);
-    setError('');
     try {
-      const { data } = await http.get(endpoints.users.list);
-      setRows(data);
-    } catch (e) {
-      setError(e?.response?.data?.error || 'Failed to load users');
+      const res = await http.get(endpoints.users.list);
+      setUsers(res.data || []);
+    } catch {
+      // noop
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    if (isAdmin) fetchUsers();
-  }, [isAdmin]);
+    loadUsers();
+  }, []);
 
-  const columns = useMemo(() => {
-    const base = [
-      { header: 'Name', accessor: 'name' },
-      { header: 'Email', accessor: 'email' },
-      { header: 'Role', accessor: 'role' },
-      { header: 'Status', accessor: 'status' },
-    ];
-    if (isAdmin) {
-      base.push({
-        header: 'Actions',
-        accessor: 'actions',
-        render: (r) => (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn ghost" onClick={() => {
-              const name = prompt('Name', r.name);
-              if (name == null) return;
-              const role = prompt('Role (admin/user)', r.role) || r.role;
-              const status = prompt('Status (active/invited/disabled)', r.status) || r.status;
-              handleUpdate(r.id, { name, role, status });
-            }}>Edit</button>
-            <button className="btn danger" onClick={() => setToDelete(r)}>Delete</button>
-          </div>
-        )
-      });
-    }
-    return base;
-  }, [isAdmin]);
+  const columns = useMemo(() => ([
+    { key: 'name', header: 'Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'role', header: 'Role' },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => (
+        <div className="flex gap-2 justify-end">
+          <Button size="sm" variant="secondary" onClick={() => onEdit(row)}>Edit</Button>
+          <Button size="sm" variant="danger" onClick={() => onDelete(row)}>Delete</Button>
+        </div>
+      ),
+    },
+  ]), []);
 
-  async function handleCreate(e) {
+  const onEdit = (row) => {
+    setEditing(row);
+    setForm({ name: row.name, email: row.email, password: '', role: row.role });
+    setModalOpen(true);
+  };
+
+  const onDelete = (row) => {
+    setConfirm({
+      title: 'Delete User',
+      message: `Are you sure you want to delete ${row.name}?`,
+      onConfirm: async () => {
+        try {
+          await http.delete(endpoints.users.delete(row._id));
+          await loadUsers();
+        } catch {
+          // noop
+        } finally {
+          setConfirm(null);
+        }
+      },
+      onCancel: () => setConfirm(null),
+    });
+  };
+
+  const onCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    setError('');
     try {
-      const payload = { name: form.name, email: form.email, role: form.role, status: form.status };
-      if (form.password) payload.password = form.password;
-      const { data } = await http.post(endpoints.users.create, payload);
-      setRows((rs) => [data, ...rs]);
-      setShowCreate(false);
-      setForm({ name: '', email: '', role: 'user', status: 'active', password: '' });
-    } catch (e) {
-      setError(e?.response?.data?.error || 'Failed to create user');
+      if (editing) {
+        const payload = { name: form.name, email: form.email, role: form.role };
+        if (form.password) payload.password = form.password;
+        await http.put(endpoints.users.update(editing._id), payload);
+      } else {
+        await http.post(endpoints.users.create, form);
+      }
+      setModalOpen(false);
+      await loadUsers();
+    } catch {
+      // noop
     }
-  }
+  };
 
-  async function handleUpdate(id, patch) {
-    try {
-      const { data } = await http.put(endpoints.users.update(id), patch);
-      setRows((rs) => rs.map((r) => (r.id === id ? data : r)));
-    } catch (e) {
-      alert(e?.response?.data?.error || 'Failed to update user');
-    }
-  }
-
-  async function handleDelete() {
-    if (!toDelete) return;
-    try {
-      await http.delete(endpoints.users.delete(toDelete.id));
-      setRows((rs) => rs.filter((r) => r.id !== toDelete.id));
-      setToDelete(null);
-    } catch (e) {
-      alert(e?.response?.data?.error || 'Failed to delete user');
-    }
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="text-center text-gray-600 py-10">
+        You do not have permission to access this page.
+      </div>
+    );
   }
 
   return (
-    <div className="page">
-      <div className="card">
-        <div className="card-header">
-          <span>Users</span>
-          {isAdmin ? <button className="btn" onClick={() => setShowCreate((s) => !s)}>+ Invite</button> : null}
-        </div>
-        {error ? <div className="badge warn" role="alert">{error}</div> : null}
-        {isAdmin && showCreate ? (
-          <form onSubmit={handleCreate} style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <input placeholder="Name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <input type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="active">active</option>
-                <option value="invited">invited</option>
-                <option value="disabled">disabled</option>
-              </select>
-              <input type="password" placeholder="Initial password (optional)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            </div>
-            <div>
-              <button className="btn primary" type="submit">Create</button>
-              <button className="btn ghost" type="button" onClick={() => setShowCreate(false)} style={{ marginLeft: 8 }}>Cancel</button>
-            </div>
-          </form>
-        ) : null}
-        {isAdmin ? (
-          <DataTable columns={columns} rows={rows} />
-        ) : (
-          <div className="muted">You must be an admin to view users.</div>
-        )}
-        {loading ? <div className="muted" style={{ marginTop: 8 }}>Loading...</div> : null}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
+        <Button onClick={onCreate}>New User</Button>
       </div>
 
-      <ConfirmDialog
-        open={Boolean(toDelete)}
-        title="Delete User"
-        message={toDelete ? `Are you sure you want to delete ${toDelete.email}?` : ''}
-        onCancel={() => setToDelete(null)}
-        onConfirm={handleDelete}
-      />
+      <Card>
+        <DataTable
+          columns={columns}
+          data={users}
+          loading={loading}
+          emptyMessage="No users found."
+        />
+      </Card>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit User' : 'Create User'}>
+        <form className="space-y-4" onSubmit={submit}>
+          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <Input label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editing ? 'Leave blank to keep current password' : ''} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="submit">{editing ? 'Save Changes' : 'Create'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={confirm.onConfirm}
+          onCancel={confirm.onCancel}
+        />
+      )}
     </div>
   );
 }

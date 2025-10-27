@@ -1,67 +1,71 @@
-import axios from 'axios';
-import { endpoints } from './endpoints';
+/**
+ * Axios HTTP client configuration with interceptors.
+ * - Adds Authorization Bearer token from localStorage
+ * - Handles 401 Unauthorized by clearing auth and redirecting to login
+ */
 
-// A lightweight in-memory auth store to decouple axios from React imports directly.
-// AuthContext will register itself here to allow 401 handling without circular deps.
-const authBridge = {
-  getToken: null,
-  onUnauthorized: null,
+import axios from 'axios';
+import { API_BASE_URL } from './endpoints';
+
+const ACCESS_TOKEN_KEY = 'rtcd_access_token';
+
+// PUBLIC_INTERFACE
+export const getAccessToken = () => {
+  /** Returns JWT access token from localStorage (if any). */
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
 };
 
 // PUBLIC_INTERFACE
-export function registerAuthBridge({ getToken, onUnauthorized }) {
-  /**
-   * Register callbacks used by the HTTP client to fetch token and handle 401s.
-   * - getToken(): returns current auth token string or null
-   * - onUnauthorized(): triggers logout flow and state reset
-   */
-  authBridge.getToken = typeof getToken === 'function' ? getToken : null;
-  authBridge.onUnauthorized = typeof onUnauthorized === 'function' ? onUnauthorized : null;
-}
+export const setAccessToken = (token) => {
+  /** Saves JWT access token to localStorage. */
+  if (token) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
+};
 
-// Create axios instance with base URL
+// Create axios instance
 const http = axios.create({
-  baseURL: endpoints.base,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: false,
+  baseURL: API_BASE_URL,
+  withCredentials: true,
 });
 
-// Request interceptor: attach Authorization Bearer token if available
+// Request interceptor to attach Authorization header
 http.interceptors.request.use(
   (config) => {
-    try {
-      const token = authBridge.getToken ? authBridge.getToken() : null;
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch {
-      // Non-blocking: if token retrieval fails, continue without Authorization header
+    const token = getAccessToken();
+    if (token) {
+      // eslint-disable-next-line no-param-reassign
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: auto logout on 401
+// Response interceptor to handle 401 globally
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error?.response?.status;
-    if (status === 401) {
-      if (typeof authBridge.onUnauthorized === 'function') {
-        try {
-          authBridge.onUnauthorized();
-        } catch {
-          // swallow to avoid breaking error pipeline
-        }
+    if (error?.response?.status === 401) {
+      // Clear token and redirect to login
+      setAccessToken(null);
+      try {
+        localStorage.removeItem('rtcd_user');
+      } catch {
+        // ignore
+      }
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
       }
     }
     return Promise.reject(error);
   }
 );
 
-// PUBLIC_INTERFACE
 export default http;
