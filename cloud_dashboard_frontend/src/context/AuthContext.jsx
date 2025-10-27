@@ -36,25 +36,21 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const saveSession = useCallback((token, userData) => {
-    if (token) setAccessToken(token);
+    // Persist token always so axios can use it on subsequent calls
+    if (token) {
+      try { localStorage.setItem(ACCESS_TOKEN_KEY, token); } catch { /* ignore */ }
+      setAccessToken(token);
+    }
     if (userData) {
       setUser(userData);
-      try {
-        localStorage.setItem(USER_KEY, JSON.stringify(userData));
-      } catch {
-        // ignore
-      }
+      try { localStorage.setItem(USER_KEY, JSON.stringify(userData)); } catch { /* ignore */ }
     }
   }, []);
 
   const clearSession = useCallback(() => {
     setAccessToken(null);
     setUser(null);
-    try {
-      localStorage.removeItem(USER_KEY);
-    } catch {
-      // ignore
-    }
+    try { localStorage.removeItem(USER_KEY); } catch { /* ignore */ }
   }, []);
 
   const fetchMe = useCallback(async () => {
@@ -64,11 +60,11 @@ export function AuthProvider({ children }) {
         saveSession(null, res.data);
       }
     } catch (e) {
-      // handled by interceptor if 401
+      // handled globally (401)
     }
   }, [saveSession]);
 
-  // Initialize from localStorage and validate
+  // Initialize - if token exists, attempt to fetch profile
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -85,21 +81,24 @@ export function AuthProvider({ children }) {
     const res = await http.post(endpoints.auth.login, { email, password });
     const { token, user: userData } = res.data || {};
     saveSession(token, userData);
+    // Refresh profile (authoritative)
+    try { await fetchMe(); } catch { /* ignore */ }
     return userData;
-  }, [saveSession]);
+  }, [saveSession, fetchMe]);
 
   const register = useCallback(async (name, email, password, role = 'user') => {
     const res = await http.post(endpoints.auth.register, { name, email, password, role });
     const { token, user: userData } = res.data || {};
     saveSession(token, userData);
+    try { await fetchMe(); } catch { /* ignore */ }
     return userData;
-  }, [saveSession]);
+  }, [saveSession, fetchMe]);
 
   const logout = useCallback(async () => {
     try {
       await http.post(endpoints.auth.logout);
     } catch {
-      // ignore network error on logout
+      // ignore
     } finally {
       clearSession();
       window.location.replace('/login');
