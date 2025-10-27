@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 /**
@@ -20,6 +20,8 @@ import { io } from 'socket.io-client';
  * - error: last connection error if any
  * - subscribe(event, handler): add listener, returns unsubscribe
  * - emit(event, payload): send event
+ * - status: 'connecting' | 'connected' | 'disconnected' | 'error'
+ * - buffer: bounded in-memory buffer helper with push/get/clear for quick event capture
  */
 export default function useSocket(namespace = '/') {
   const baseUrl = process.env.REACT_APP_SOCKET_URL || '';
@@ -30,9 +32,16 @@ export default function useSocket(namespace = '/') {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
 
+  // simple bounded buffer for consumers that want last N events
+  const bufferRef = useRef([]);
+  const bufferLimitRef = useRef(100);
+
+  const pushToBuffer = useCallback((item) => {
+    bufferRef.current = [item, ...bufferRef.current].slice(0, bufferLimitRef.current);
+  }, []);
+
   useEffect(() => {
     if (!baseUrl) {
-      // Fail fast but keep hook stable in dev if env missing.
       setError(new Error('Missing REACT_APP_SOCKET_URL'));
       setConnected(false);
       setConnecting(false);
@@ -94,12 +103,31 @@ export default function useSocket(namespace = '/') {
     socketRef.current?.emit(event, payload);
   };
 
+  const status = error ? 'error' : connecting ? 'connecting' : connected ? 'connected' : 'disconnected';
+
   return {
     socket: socketRef.current,
     connected,
     connecting,
+    status,
     error,
     subscribe,
     emit,
+    buffer: {
+      /** Add an item to the bounded buffer (stored newest-first) */
+      push: pushToBuffer,
+      /** Get a snapshot copy of the current buffer contents */
+      get: () => [...bufferRef.current],
+      /** Clear the buffer */
+      clear: () => {
+        bufferRef.current = [];
+      },
+      /** Configure maximum buffer length (default 100) */
+      setLimit: (n) => {
+        const v = Math.max(1, Number(n) || 1);
+        bufferLimitRef.current = v;
+        bufferRef.current = bufferRef.current.slice(0, v);
+      },
+    },
   };
 }

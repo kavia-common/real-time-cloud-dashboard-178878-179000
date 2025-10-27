@@ -46,7 +46,7 @@ export const apiUsers = {
 };
 
 export const apiMetrics = {
-  /** Fetch aggregate stats for dashboard */
+  /** Fetch aggregate stats for dashboard (used by Dashboard.jsx initial render) */
   stats: (params) => http.get(endpoints.metrics.stats, { params }),
   /** Fetch activity feed */
   activity: (params) => http.get(endpoints.metrics.activity, { params }),
