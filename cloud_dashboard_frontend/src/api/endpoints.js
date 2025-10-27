@@ -1,17 +1,19 @@
  /**
   * API endpoints mapping to backend routes.
   * Ensure REACT_APP_API_BASE_URL in .env points to backend (e.g., http://localhost:4000).
-  * Optionally set REACT_APP_API_PATH_PREFIX (default: '') to proxy paths like '/api' to avoid adblock heuristics.
+  * REACT_APP_API_PATH_PREFIX defaults to '/api' to avoid adblock heuristics (configurable to '').
   */
 
  // PUBLIC_INTERFACE
  export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
  // PUBLIC_INTERFACE
- export const API_PATH_PREFIX = (process.env.REACT_APP_API_PATH_PREFIX || '').replace(/\/+$/, ''); // trim trailing slash
+ export const API_PATH_PREFIX = (process.env.REACT_APP_API_PATH_PREFIX ?? '/api').replace(/\/*$/, ''); // trim trailing slash
 
  const withBase = (path) => {
+   // PUBLIC_INTERFACE
+   /** Build a fully-qualified endpoint URL using baseURL + optional path prefix. */
    const normalized = path.startsWith('/') ? path : `/${path}`;
-   const prefix = API_PATH_PREFIX ? `/${API_PATH_PREFIX.replace(/^\/+/, '')}` : '';
+   const prefix = API_PATH_PREFIX ? `/${API_PATH_PREFIX.replace(/^\/*/, '')}` : '';
    return `${API_BASE_URL}${prefix}${normalized}`;
  };
 

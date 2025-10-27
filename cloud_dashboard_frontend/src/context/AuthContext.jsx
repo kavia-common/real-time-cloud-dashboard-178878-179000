@@ -112,20 +112,37 @@ export function AuthProvider({ children }) {
   }, [fetchMe]);
 
   const login = useCallback(async (email, password) => {
-    const res = await http.post(endpoints.auth.login, { email, password });
-    const { token, user: userData } = res.data || {};
-    saveSession(token, userData);
-    // Refresh profile (authoritative)
-    try { await fetchMe(); } catch { /* ignore */ }
-    return userData;
+    try {
+      const res = await http.post(endpoints.auth.login, { email, password });
+      const { token, user: userData } = res.data || {};
+      saveSession(token, userData);
+      // Refresh profile (authoritative)
+      try { await fetchMe(); } catch { /* ignore */ }
+      return userData;
+    } catch (err) {
+      // Normalize error for UI
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.message;
+      const message = apiMsg || err?.userMessage || err?.message || 'Login failed. Please check your credentials.';
+      const e = new Error(message);
+      e.cause = err;
+      throw e;
+    }
   }, [saveSession, fetchMe]);
 
   const register = useCallback(async (name, email, password, role = 'user') => {
-    const res = await http.post(endpoints.auth.register, { name, email, password, role });
-    const { token, user: userData } = res.data || {};
-    saveSession(token, userData);
-    try { await fetchMe(); } catch { /* ignore */ }
-    return userData;
+    try {
+      const res = await http.post(endpoints.auth.register, { name, email, password, role });
+      const { token, user: userData } = res.data || {};
+      saveSession(token, userData);
+      try { await fetchMe(); } catch { /* ignore */ }
+      return userData;
+    } catch (err) {
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.message;
+      const message = apiMsg || err?.userMessage || err?.message || 'Registration failed. Please try again.';
+      const e = new Error(message);
+      e.cause = err;
+      throw e;
+    }
   }, [saveSession, fetchMe]);
 
   const logout = useCallback(async () => {

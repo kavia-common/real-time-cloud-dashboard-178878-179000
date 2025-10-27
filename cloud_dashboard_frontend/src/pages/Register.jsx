@@ -64,7 +64,13 @@ export default function Register() {
       const to = qsFrom || '/';
       navigate(to, { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || 'Registration failed');
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.userMessage ||
+        err?.message ||
+        'Registration failed';
+      setError(message);
     }
   };
 

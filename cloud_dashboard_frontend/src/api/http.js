@@ -7,7 +7,7 @@
  */
 
 import axios from 'axios';
-import { API_BASE_URL } from './endpoints';
+import { API_BASE_URL, API_PATH_PREFIX } from './endpoints';
 
 const ACCESS_TOKEN_KEY = 'rtcd_access_token';
 
@@ -31,15 +31,16 @@ export const setAccessToken = (token) => {
   }
 };
 
-// Create axios instance (always use baseURL)
-const http = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  // Explicit default headers to avoid CORS preflight surprises on simple requests where possible
-  headers: {
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-});
+ // Create axios instance (always use baseURL)
+ const http = axios.create({
+   baseURL: API_BASE_URL + (API_PATH_PREFIX ? `/${API_PATH_PREFIX.replace(/^\/*/, '')}` : ''),
+   withCredentials: true,
+   timeout: 10000, // 10s request timeout
+   // Explicit default headers to avoid CORS preflight surprises on simple requests where possible
+   headers: {
+     'X-Requested-With': 'XMLHttpRequest',
+   },
+ });
 
 // Request interceptor to attach Authorization header
 http.interceptors.request.use(
@@ -58,22 +59,24 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Diagnostics for blocked-by-client or CORS-like network failures
+    const timedOut = error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '');
     const isNetworkLevel =
-      !error.response &&
-      (error.code === 'ERR_NETWORK' ||
-        /Network Error/i.test(error.message || '') ||
-        /Blocked by client/i.test(error.message || ''));
+      !error?.response &&
+      (error?.code === 'ERR_NETWORK' ||
+        /Network Error/i.test(error?.message || '') ||
+        /Blocked by client/i.test(error?.message || '') ||
+        timedOut);
 
     if (isNetworkLevel) {
       // Provide guidance to console to help users whitelist
       // eslint-disable-next-line no-console
       console.warn(
-        '[Auth] Network-level error. This may be caused by an ad/tracker blocker or CORS. ' +
+        '[HTTP] Network-level error (CORS/AdBlock/Timeout). ' +
           `Request: ${error.config?.method?.toUpperCase?.() || 'GET'} ${error.config?.baseURL || ''}${error.config?.url || ''}\n` +
-          `Base URL: ${API_BASE_URL}\n` +
+          `Base URL: ${API_BASE_URL}${API_PATH_PREFIX || ''}\n` +
+          (timedOut ? 'Cause: Request timed out.\n' : '') +
           'Tips: 1) Temporarily disable the ad blocker for this site; 2) Add an allow rule for the backend host; ' +
-          '3) Ensure REACT_APP_API_BASE_URL is correct; 4) Check the browser console/network tab for details.'
+          '3) Ensure REACT_APP_API_BASE_URL and REACT_APP_API_PATH_PREFIX are correct; 4) Check the browser console/network tab for details.'
       );
     }
 
@@ -88,6 +91,15 @@ http.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.replace('/login');
       }
+    }
+    // Attach a user-friendly message to help surfaces in UI
+    if (!error.response) {
+      const baseMsg = timedOut
+        ? 'Request timed out. Please check your connection or try again.'
+        : 'Network error. This may be caused by CORS or an ad/tracker blocker.';
+      error.userMessage = `${baseMsg} If the issue persists, disable the blocker for this site or set REACT_APP_API_PATH_PREFIX=/api.`;
+    } else if (error.response?.status >= 500) {
+      error.userMessage = 'Server error. Please try again later.';
     }
     return Promise.reject(error);
   }

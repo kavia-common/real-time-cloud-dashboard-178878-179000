@@ -61,7 +61,13 @@ export default function Login() {
       const to = qsFrom || location.state?.from?.pathname || '/';
       navigate(to, { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || 'Login failed. Please check your credentials.');
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.userMessage ||
+        err?.message ||
+        'Login failed. Please check your credentials.';
+      setError(message);
     }
   };
 
