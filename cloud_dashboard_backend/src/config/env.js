@@ -10,7 +10,8 @@ export const env = {
   PORT: process.env.PORT || 4000,
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/cloud_dashboard',
   JWT_SECRET: process.env.JWT_SECRET || 'change-me-in-production',
-  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
+  // Align default CORS to dev frontend origin to reduce surprises
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   SOCKET_PATH: process.env.SOCKET_PATH || '/socket.io',
   METRIC_TICK_MS: Number(process.env.METRIC_TICK_MS || 3000),
 

@@ -82,4 +82,23 @@ router.get('/me', authRequired, async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/logout
+ * Stateless logout endpoint for frontend symmetry; no server state to clear.
+ */
+router.post('/logout', authRequired, async (req, res) => {
+  try {
+    await Activity.create({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      action: 'user.logout',
+      details: 'User logged out'
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[auth.logout] error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

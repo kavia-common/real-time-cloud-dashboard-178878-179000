@@ -6,16 +6,17 @@ Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 
 - Express HTTP API
   - GET /health (readiness probe)
-  - /auth: register, login, me
+  - /auth: register, login, me, logout
   - /users: CRUD (admin-restricted)
-  - /metrics: stats, recent activity
+  - /metrics: stats, recent activity (with pagination)
 - Socket.IO namespaces
-  - /metrics: emits `metric:update` periodically
+  - /metrics: emits `metric:update` every METRIC_TICK_MS with timestamp and value
   - /users: placeholder for user-related realtime events
 - MongoDB (Mongoose)
   - Models: User, Activity, Metric with validations and indexes
 - Security middlewares: helmet, rate-limiter, CORS
 - Default admin bootstrap from environment variables
+- Centralized error handler and 404 JSON response
 
 ## Getting Started
 
@@ -96,7 +97,7 @@ A ready-to-use template is available at `.env.example`. Copy it to `.env` and fi
 - MONGODB_URI: MongoDB connection URI (Atlas recommended). Example:
   mongodb+srv://dbuser:dbpass@cluster0.abc123.mongodb.net/cloud_dashboard?retryWrites=true&w=majority&appName=CloudDashboard
 - JWT_SECRET: Secret used to sign JWTs
-- CORS_ORIGIN: Allowed origin for CORS (e.g., http://localhost:3000)
+- CORS_ORIGIN: Allowed origin for CORS (default http://localhost:3000 in dev)
 - SOCKET_PATH: Socket.IO server path (default /socket.io)
 - METRIC_TICK_MS: Interval (ms) for emitting metric updates (default 3000)
 - DEFAULT_ADMIN_NAME / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD: Admin user bootstrapped on startup
@@ -126,6 +127,7 @@ Auth:
 - POST /auth/register -> { token, user }
 - POST /auth/login -> { token, user }
 - GET /auth/me (Bearer token)
+- POST /auth/logout -> { success: true }
 
 Users (admin):
 - GET /users
@@ -135,10 +137,15 @@ Users (admin):
 - DELETE /users/:id
 
 Metrics:
-- GET /metrics/stats
-- GET /metrics/activity
-- Socket namespace /metrics -> event `metric:update`
+- GET /metrics/stats -> { activeUsers, rpm, errors, ... }
+- GET /metrics/activity?page=1&limit=30 -> { page, limit, total, items: [...] }
+- Socket namespace /metrics -> event `metric:update` with { type, message, value, timestamp }
 
 ## Notes
 
-This is a working skeleton. Extend validations, error handling, and production configs (structured logging, strict CORS rules, secure cookies, rate limits, etc.) before deployment.
+This app is production-ready in structure; before deploying:
+- Harden validations
+- Add structured logging
+- Restrict CORS and rate limits appropriately
+- Rotate strong JWT secrets
+- Review indexes and performance settings

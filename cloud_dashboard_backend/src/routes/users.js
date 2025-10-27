@@ -16,7 +16,7 @@ function requireAdmin(req, res, next) {
  */
 router.get('/', authRequired, requireAdmin, async (req, res) => {
   const users = await User.find().select('name email role status createdAt').lean();
-  res.json(users.map(u => ({ id: u._id, ...u })));
+  res.json(users.map(u => ({ id: u._id, _id: u._id, name: u.name, email: u.email, role: u.role, status: u.status, createdAt: u.createdAt })));
 });
 
 /**
@@ -39,7 +39,7 @@ router.post('/', authRequired, requireAdmin, async (req, res) => {
     details: `Created user ${email}`
   });
 
-  res.status(201).json({ id: user._id, name: user.name, email: user.email, role: user.role, status: user.status });
+  res.status(201).json({ id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role, status: user.status });
 });
 
 /**
@@ -51,7 +51,7 @@ router.get('/:id', authRequired, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.id !== id) return res.status(403).json({ error: 'Forbidden' });
   const u = await User.findById(id).select('name email role status createdAt updatedAt').lean();
   if (!u) return res.status(404).json({ error: 'Not found' });
-  res.json({ id: u._id, ...u });
+  res.json({ id: u._id, _id: u._id, name: u.name, email: u.email, role: u.role, status: u.status, createdAt: u.createdAt, updatedAt: u.updatedAt });
 });
 
 /**
@@ -79,7 +79,7 @@ router.put('/:id', authRequired, async (req, res) => {
     details: `Updated user ${updated.email}`
   });
 
-  res.json({ id: updated._id, ...updated });
+  res.json({ id: updated._id, _id: updated._id, name: updated.name, email: updated.email, role: updated.role, status: updated.status });
 });
 
 /**

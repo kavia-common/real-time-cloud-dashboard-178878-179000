@@ -19,7 +19,7 @@ import metricsRoutes from './routes/metrics.js';
  * Creates and starts the HTTP server with Express and Socket.IO.
  * Routes:
  *  - GET /health               Health check
- *  - /auth (POST /login, POST /register, GET /me)
+ *  - /auth (POST /login, POST /register, GET /me, POST /logout)
  *  - /users (CRUD, admin restricted)
  *  - /metrics (GET /stats, GET /activity)
  */
@@ -50,6 +50,26 @@ async function bootstrap() {
   app.use('/auth', authRoutes);
   app.use('/users', usersRoutes);
   app.use('/metrics', metricsRoutes);
+
+  // 404 handler for unknown API routes
+  app.use((req, res, next) => {
+    if (req.path === '/' || req.path === '/index.html') return next();
+    return res.status(404).json({ error: 'Not Found' });
+  });
+
+  // Centralized error handler
+  // Ensures consistent 500 response structure and hides stack in production
+  // PUBLIC_INTERFACE
+  app.use((err, req, res, next) => {
+    // eslint-disable-next-line no-console
+    console.error('[error]', err?.message || err);
+    if (res.headersSent) return next(err);
+    const status = err.status || 500;
+    const payload = {
+      error: status === 500 ? 'Server error' : err.message || 'Error',
+    };
+    return res.status(status).json(payload);
+  });
 
   // Create server and attach Socket.IO
   const server = http.createServer(app);
