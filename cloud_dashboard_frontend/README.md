@@ -25,9 +25,9 @@ cp .env.example .env
 
 Available variables:
 
-- REACT_APP_API_BASE_URL: Base URL for REST API (default http://localhost:4000)
-- REACT_APP_SOCKET_URL: Base URL for Socket.IO (default http://localhost:4000)
-- REACT_APP_SOCKET_PATH: Optional custom Socket.IO path (defaults to /socket.io)
+- REACT_APP_API_BASE_URL: Base URL for REST API (example http://localhost:4000 or http://localhost:4000/api). If not set, the app will warn and fall back to http://localhost:4000.
+- REACT_APP_SOCKET_URL: Base URL for Socket.IO (default for local dev http://localhost:4000)
+- REACT_APP_SOCKET_PATH: Optional custom Socket.IO path (defaults to /socket.io; must match backend SOCKET_PATH)
 
 ## Getting Started
 

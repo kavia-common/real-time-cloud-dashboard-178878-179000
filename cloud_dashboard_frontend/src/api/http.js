@@ -34,11 +34,26 @@ function emitUnauthorized() {
   });
 }
 
-// Determine base URL from environment
-const BASE_URL =
-  process.env.REACT_APP_API_BASE_URL && process.env.REACT_APP_API_BASE_URL.trim().length > 0
-    ? process.env.REACT_APP_API_BASE_URL
-    : 'http://localhost:4000/api';
+/**
+ * Determine base URL from environment with graceful fallback.
+ * If REACT_APP_API_BASE_URL is not set, we will:
+ *  - log a clear warning to console with guidance to set it
+ *  - attempt a sensible default of http://localhost:4000
+ * Note: endpoints use relative paths (e.g., /auth/login), so both
+ * http://localhost:4000 and http://localhost:4000/api can work depending
+ * on backend routing. Adjust your .env to match your backend prefix.
+ */
+let BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').trim();
+
+if (!BASE_URL) {
+  // Graceful warning to guide developers during setup
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[http] REACT_APP_API_BASE_URL is not set. Falling back to http://localhost:4000. ' +
+      'Create cloud_dashboard_frontend/.env from .env.example and set REACT_APP_API_BASE_URL.'
+  );
+  BASE_URL = 'http://localhost:4000';
+}
 
 const http = axios.create({
   baseURL: BASE_URL,
