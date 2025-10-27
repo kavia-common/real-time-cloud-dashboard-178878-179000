@@ -30,7 +30,7 @@ export const apiAuth = {
   login: (payload) => http.post(endpoints.auth.login, payload),
   /** Register user. Returns { user, token } */
   register: (payload) => http.post(endpoints.auth.register, payload),
-  /** Validate current session, returns { user } */
+  /** Validate current session, returns user profile directly */
   me: () => http.get(endpoints.auth.me),
 };
 

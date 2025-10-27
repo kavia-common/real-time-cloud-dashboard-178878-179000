@@ -4,7 +4,7 @@ import ChartLine from '../components/ui/ChartLine';
 import LiveIndicator from '../components/ui/LiveIndicator';
 import useSocket from '../hooks/useSocket';
 import http from '../api/http';
-import endpoints from '../api/endpoints';
+import endpoints, { apiMetrics } from '../api/endpoints';
 import '../styles/theme.css';
 
 /**
@@ -34,7 +34,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const { data } = await http.get(endpoints.metrics.stats);
+        const { data } = await apiMetrics.stats();
         // Update stat cards
         setStats({
           count: Number(data?.count ?? 0),

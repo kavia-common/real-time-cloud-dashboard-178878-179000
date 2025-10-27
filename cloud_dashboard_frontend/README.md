@@ -1,11 +1,11 @@
-# Cloud Dashboard Frontend (React)
+# Real-time Cloud Dashboard Frontend
 
 React-based frontend for the Real-time Cloud Dashboard. Integrates with the Express + Socket.IO backend for authentication, user management, metrics, and live updates.
 
 ## Features
 
 - Auth: Login, Register, Session validation via JWT
-- Users: Admin-only CRUD
+- Users: Admin-only CRUD with Activity logging
 - Metrics: Stats and recent activity via REST
 - Realtime: Live event feed via Socket.IO (/metrics namespace)
 - Theming: Ocean Professional theme, responsive layout
@@ -17,17 +17,37 @@ React-based frontend for the Real-time Cloud Dashboard. Integrates with the Expr
 
 ## Environment
 
-Copy env example and adjust if needed:
+Create `.env` from `.env.example`:
 
 ```
 cp .env.example .env
 ```
 
-Available variables:
+Set the following variables:
 
-- REACT_APP_API_BASE_URL: Base URL for REST API (example http://localhost:4000 or http://localhost:4000/api). If not set, the app will warn and fall back to http://localhost:4000.
-- REACT_APP_SOCKET_URL: Base URL for Socket.IO (default for local dev http://localhost:4000)
-- REACT_APP_SOCKET_PATH: Optional custom Socket.IO path (defaults to /socket.io; must match backend SOCKET_PATH)
+- REACT_APP_API_BASE_URL: Base URL for REST API (example http://localhost:4000). If not set, the app warns and falls back to http://localhost:4000.
+- REACT_APP_SOCKET_URL: Backend origin for Socket.IO (example http://localhost:4000)
+- REACT_APP_SOCKET_PATH: Socket.IO path; must match backend SOCKET_PATH (default /socket.io)
+
+Ensure backend CORS_ORIGIN includes your frontend origin (e.g., http://localhost:3000).
+
+## Auth expectations
+
+- POST /auth/login returns { token, user }
+- POST /auth/register returns { token, user }
+- GET /auth/me returns the user profile directly (not wrapped as { user: ... })
+
+The app stores:
+- auth_token (JWT) and
+- auth_user (JSON user) in localStorage.
+
+401 responses trigger automatic logout and redirect to /login.
+
+## Live metrics
+
+- REST: GET /metrics/stats and GET /metrics/activity
+- WebSocket: connects to `${REACT_APP_SOCKET_URL}/metrics` using `REACT_APP_SOCKET_PATH`
+- Listens for "metric:update" events and updates the dashboard in real-time
 
 ## Getting Started
 
@@ -45,33 +65,14 @@ npm start
 
 App runs at http://localhost:3000
 
-Ensure the backend is running at REACT_APP_API_BASE_URL and allows CORS for the frontend origin.
-
-## Auth Flow
-
-- POST /auth/login and /auth/register return { token, user }
-- JWT stored in localStorage as auth_token; user in auth_user
-- On app load, if token exists, GET /auth/me is called to validate
-- If any API returns 401, the app automatically logs out and redirects to /login
-
-## Users (Admin)
-
-- List/create/update/delete via /users endpoints
-- Non-admins won't see Users table and controls
-
-## Metrics
-
-- GET /metrics/stats populates stat cards and chart baseline
-- GET /metrics/activity renders Recent Activity table
-- Socket.IO connects to namespace /metrics and listens for event `metric:update`
-
 ## Scripts
 
 - npm start: start dev server
-- npm run build: production build
+- npm run build: build for production
 - npm test: run tests
 
 ## Notes
 
-- Configure backend CORS_ORIGIN to match http://localhost:3000 in development.
-- For MongoDB Atlas configuration and backend env vars, see backend README.
+- Configure backend CORS_ORIGIN to match your frontend origin (e.g., http://localhost:3000).
+- Ensure SOCKET_PATH (backend) equals REACT_APP_SOCKET_PATH (frontend).
+- For MongoDB/Atlas and backend configuration, see the backend README.

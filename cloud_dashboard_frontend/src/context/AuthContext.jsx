@@ -56,11 +56,13 @@ export function AuthProvider({ children }) {
         if (token) {
           // Validate session
           const { data } = await apiAuth.me();
-          if (data?.user) {
-            setUser(data.user);
-            localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          // Backend returns user profile directly (not wrapped)
+          const userProfile = data && typeof data === 'object' ? data : null;
+          if (userProfile?.id && userProfile?.email) {
+            setUser(userProfile);
+            localStorage.setItem(USER_KEY, JSON.stringify(userProfile));
           } else {
-            // invalid token
+            // invalid token / unexpected shape
             localStorage.removeItem(TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
             setUser(null);

@@ -1,5 +1,30 @@
 # Cloud Dashboard Backend
 
+## Health Check
+- GET /health -> {"status":"ok","time":"..."}
+Use this to verify service is running and reachable.
+
+## Auth
+- POST /auth/login -> { token, user }
+- POST /auth/register -> { token, user }
+- GET /auth/me -> Returns user profile directly (not wrapped)
+
+## Users (admin)
+- CRUD under /users with activity logging.
+
+## Metrics
+- GET /metrics/stats -> { count, total, average, latest: [...] }
+- GET /metrics/activity -> Activity feed array
+
+## WebSocket
+- Socket.IO path is configurable via env SOCKET_PATH (default "/socket.io")
+- Namespaces:
+  - /metrics: emits "metric:update" events every METRIC_TICK_MS
+- CORS origin controlled by CORS_ORIGIN
+Ensure frontend sets:
+- REACT_APP_SOCKET_URL to backend origin, e.g., http://localhost:4000
+- REACT_APP_SOCKET_PATH to match SOCKET_PATH, e.g., /socket.io
+
 Express + Socket.IO + Mongoose backend for the Real-time Cloud Dashboard.
 
 ## Features
