@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,6 +17,14 @@ export default function Login() {
   const [touched, setTouched] = useState({});
   const [error, setError] = useState('');
   const [showPwd, setShowPwd] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.info(
+      'If you see net::ERR_BLOCKED_BY_CLIENT for /auth/* requests, an extension may be blocking them. ' +
+        'Try disabling the blocker for this site or set REACT_APP_API_PATH_PREFIX=/api and ensure REACT_APP_API_BASE_URL points to your backend.'
+    );
+  }, []);
 
   const fieldErrors = useMemo(() => {
     const errs = {};
