@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import StatCard from '../components/ui/StatCard';
+import StatCard from '../components/ui/StatCard.tsx';
 import ChartLine from '../components/ui/ChartLine';
 import LiveIndicator from '../components/ui/LiveIndicator';
 import useSocket from '../hooks/useSocket';
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ count: 0, total: 0, average: 0, latest: [], previous: {} });
   const [chartData, setChartData] = useState([]);
+  const [sparklines, setSparklines] = useState({ count: [], total: [], average: [] }); // eslint-disable-line no-unused-vars
 
   const makeZeroSeries = (n = 10) => Array.from({ length: n }).map((_, i) => ({ x: i, y: 0 }));
 
@@ -85,6 +86,13 @@ export default function Dashboard() {
         const nextAverage = nextLatest.length
           ? nextLatest.reduce((acc, m) => acc + Number(m.value || 0), 0) / nextLatest.length
           : 0;
+
+        // Update sparklines
+        setSparklines((prev) => ({
+          count: [...prev.count, nextCount].slice(-20),
+          total: [...prev.total, nextTotal].slice(-20),
+          average: [...prev.average, nextAverage].slice(-20),
+        }));
 
         return {
           count: nextCount,

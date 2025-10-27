@@ -9,10 +9,10 @@ import RoleRoute from './components/layout/RoleRoute';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Activity from './pages/Activity';
-import Settings from './pages/Settings';
+import Settings from './pages/Settings.tsx';
 import Profile from './pages/Profile';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Login from './pages/Login.tsx';
+import Register from './pages/Register.tsx';
 import NotFound from './pages/NotFound';
 import UIShowcase from './pages/UIShowcase';
 

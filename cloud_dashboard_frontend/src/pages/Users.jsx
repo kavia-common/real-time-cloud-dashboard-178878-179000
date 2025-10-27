@@ -4,6 +4,8 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button.tsx';
 import Input from '../components/ui/Input.tsx';
+import Select from '../components/ui/Select.tsx';
+import Tabs from '../components/ui/Tabs.tsx';
 import { apiUsers } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import '../styles/theme.css';
@@ -52,8 +54,24 @@ export default function Users() {
   const [toDelete, setToDelete] = useState(null);
   const [pendingIds, setPendingIds] = useState(new Set());
   const [errorIds, setErrorIds] = useState(new Set());
+  const [filterTab, setFilterTab] = useState('all');
 
   const { show: showToast, node: toastNode } = useToast();
+
+  const filterTabs = useMemo(
+    () => [
+      { id: 'all', label: 'All Users', icon: '👥' },
+      { id: 'active', label: 'Active', icon: '✅' },
+      { id: 'invited', label: 'Invited', icon: '📧' },
+      { id: 'disabled', label: 'Disabled', icon: '🚫' },
+    ],
+    []
+  );
+
+  const filteredRows = useMemo(() => {
+    if (filterTab === 'all') return rows;
+    return rows.filter((r) => r.status === filterTab);
+  }, [rows, filterTab]);
 
   const columns = useMemo(() => {
     const base = [
@@ -206,22 +224,55 @@ export default function Users() {
   return (
     <div className="page">
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Users</span>
+        <div
+          className="card-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 'var(--spacing-md)',
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0 }}>Users</h2>
+            <p className="muted small" style={{ marginTop: '4px' }}>
+              Manage user accounts and permissions
+            </p>
+          </div>
           {isAdmin && (
-            <button className="btn primary" onClick={() => { setCreateOpen(true); resetForm(); }}>
-              + Invite
-            </button>
+            <Button variant="primary" onClick={() => { setCreateOpen(true); resetForm(); }}>
+              ➕ Invite User
+            </Button>
           )}
         </div>
 
-        {fetchError ? <div className="badge warn" role="alert">{fetchError}</div> : null}
+        {fetchError ? (
+          <div
+            className="badge error"
+            role="alert"
+            style={{ margin: 'var(--spacing-md)', display: 'block', padding: 'var(--spacing-sm)' }}
+          >
+            {fetchError}
+          </div>
+        ) : null}
 
         {isAdmin ? (
           <>
+            <div className="card-content">
+              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <Tabs
+                  items={filterTabs}
+                  activeTab={filterTab}
+                  onChange={setFilterTab}
+                  variant="segmented"
+                />
+              </div>
+            </div>
+
             <DataTable
               columns={columns}
-              rows={rows}
+              rows={filteredRows}
               optimistic={{ pendingIds, errorIds }}
               initialPageSize={10}
             />
@@ -254,23 +305,27 @@ export default function Users() {
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={formErrors.name} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={formErrors.email} required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label>Role</label>
-              <select className="w-full" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-              {formErrors.role ? <div className="small" style={{ color: 'var(--color-error)' }}>{formErrors.role}</div> : null}
-            </div>
-            <div>
-              <label>Status</label>
-              <select className="w-full" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="active">active</option>
-                <option value="invited">invited</option>
-                <option value="disabled">disabled</option>
-              </select>
-              {formErrors.status ? <div className="small" style={{ color: 'var(--color-error)' }}>{formErrors.status}</div> : null}
-            </div>
+            <Select
+              label="Role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              options={[
+                { value: 'user', label: 'User' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+              error={formErrors.role}
+            />
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'invited', label: 'Invited' },
+                { value: 'disabled', label: 'Disabled' },
+              ]}
+              error={formErrors.status}
+            />
           </div>
           <Input label="Initial password (optional)" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         </form>
@@ -292,23 +347,27 @@ export default function Users() {
           <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={formErrors.name} required />
           <Input label="Email" type="email" value={form.email} disabled helperText="Email cannot be changed" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label>Role</label>
-              <select className="w-full" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-              {formErrors.role ? <div className="small" style={{ color: 'var(--color-error)' }}>{formErrors.role}</div> : null}
-            </div>
-            <div>
-              <label>Status</label>
-              <select className="w-full" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="active">active</option>
-                <option value="invited">invited</option>
-                <option value="disabled">disabled</option>
-              </select>
-              {formErrors.status ? <div className="small" style={{ color: 'var(--color-error)' }}>{formErrors.status}</div> : null}
-            </div>
+            <Select
+              label="Role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              options={[
+                { value: 'user', label: 'User' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+              error={formErrors.role}
+            />
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'invited', label: 'Invited' },
+                { value: 'disabled', label: 'Disabled' },
+              ]}
+              error={formErrors.status}
+            />
           </div>
         </form>
       </Modal>
