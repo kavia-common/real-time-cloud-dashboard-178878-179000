@@ -8,10 +8,10 @@ import mongoose from 'mongoose';
 const ActivitySchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
-    userEmail: { type: String, trim: true },
+    userEmail: { type: String, trim: true, lowercase: true, index: true },
     action: {
       type: String,
-      required: true,
+      required: [true, 'Activity action is required'],
       enum: ['login', 'logout', 'create_user', 'update_user', 'delete_user', 'metric_event', 'other'],
       index: true
     },

@@ -10,15 +10,16 @@ dotenv.config();
 // PUBLIC_INTERFACE
 export const env = {
   PORT: Number(process.env.PORT || 4000),
-  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/cloud_dashboard',
+  // MONGODB_URI must be explicitly provided; no default fallback to avoid accidental local misconfig
+  MONGODB_URI: process.env.MONGODB_URI,
   JWT_SECRET: process.env.JWT_SECRET || 'change-me-in-production',
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   SOCKET_PATH: process.env.SOCKET_PATH || '/socket.io',
   METRIC_TICK_MS: Number(process.env.METRIC_TICK_MS || 3000),
 
-  DEFAULT_ADMIN_NAME: process.env.DEFAULT_ADMIN_NAME || 'Administrator',
-  DEFAULT_ADMIN_EMAIL: process.env.DEFAULT_ADMIN_EMAIL || 'admin@example.com',
-  DEFAULT_ADMIN_PASSWORD: process.env.DEFAULT_ADMIN_PASSWORD || 'admin123'
+  DEFAULT_ADMIN_NAME: process.env.DEFAULT_ADMIN_NAME,
+  DEFAULT_ADMIN_EMAIL: process.env.DEFAULT_ADMIN_EMAIL,
+  DEFAULT_ADMIN_PASSWORD: process.env.DEFAULT_ADMIN_PASSWORD
 };
 
 /**
@@ -41,6 +42,13 @@ export function validateEnv() {
 
   if (env.METRIC_TICK_MS < 250) {
     problems.push('METRIC_TICK_MS too low; must be >= 250');
+  }
+
+  // Admin bootstrap: only warn in dev if partially configured
+  const hasAnyAdmin = Boolean(env.DEFAULT_ADMIN_EMAIL || env.DEFAULT_ADMIN_PASSWORD || env.DEFAULT_ADMIN_NAME);
+  if (hasAnyAdmin) {
+    if (!env.DEFAULT_ADMIN_EMAIL) problems.push('DEFAULT_ADMIN_EMAIL is set partially; provide email for bootstrap');
+    if (!env.DEFAULT_ADMIN_PASSWORD) problems.push('DEFAULT_ADMIN_PASSWORD is required to bootstrap default admin');
   }
 
   if (problems.length) {

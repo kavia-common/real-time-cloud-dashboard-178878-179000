@@ -17,7 +17,7 @@ import mongoose from 'mongoose';
 const MetricSchema = new mongoose.Schema(
   {
     key: { type: String, required: true, trim: true, index: true },
-    value: { type: Number, required: true, default: 0 },
+    value: { type: Number, required: true, default: 0, min: [0, 'Metric value must be >= 0'] },
     metadata: { type: Object, default: {} },
     source: { type: String, default: 'system', index: true },
     tags: { type: [String], default: [] }
@@ -31,7 +31,10 @@ MetricSchema.index({ key: 1, createdAt: -1 });
 // Index for time-range queries (used in /metrics/stats with date filters)
 MetricSchema.index({ createdAt: -1 });
 
+/** Additional indexes */
 // Index by source and time for analytics
 MetricSchema.index({ source: 1, createdAt: -1 });
+// Tags array index for filtering
+MetricSchema.index({ tags: 1, createdAt: -1 });
 
 export const Metric = mongoose.model('Metric', MetricSchema);

@@ -93,12 +93,13 @@ async function seedDefaultAdmin() {
   console.log(`[seed] default admin created: ${email}`);
 }
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * Connect to MongoDB with retries and seed default admin if provided by env.
+ * Uses env.MONGODB_URI; throws if not set or connection fails.
+ * Returns when a connection is established.
+ */
 export async function connectDB() {
-  /**
-   * Connect to MongoDB with retries and seed default admin if provided by env.
-   * Returns when a connection is established; throws on unrecoverable failure.
-   */
   if (isConnected) return;
 
   mongoose.set('strictQuery', true);

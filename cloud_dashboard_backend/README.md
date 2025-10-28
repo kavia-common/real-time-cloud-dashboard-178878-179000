@@ -113,14 +113,24 @@ Troubleshooting:
 
 ## Environment Variables
 
-- PORT: HTTP port (default 4000)
+Required for startup:
 - MONGODB_URI: MongoDB connection URI (Atlas recommended). Example:
   mongodb+srv://dbuser:dbpass@cluster0.abc123.mongodb.net/cloud_dashboard?retryWrites=true&w=majority&appName=CloudDashboard
 - JWT_SECRET: Secret used to sign JWTs
 - CORS_ORIGIN: Allowed origin for CORS (e.g., http://localhost:3000)
+
+Optional (with defaults):
+- PORT: HTTP port (default 4000)
 - SOCKET_PATH: Socket.IO server path (default /socket.io)
 - METRIC_TICK_MS: Interval (ms) for emitting metric updates (default 3000)
-- DEFAULT_ADMIN_NAME / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD: Admin user bootstrapped on startup
+
+Admin bootstrap (optional, but if any provided, email and password are required):
+- DEFAULT_ADMIN_NAME
+- DEFAULT_ADMIN_EMAIL
+- DEFAULT_ADMIN_PASSWORD
+
+Behavior:
+- On startup, if DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD are set and no user with that email exists, an admin user is created automatically.
 
 See .env.example for a complete, copyable template.
 
