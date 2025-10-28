@@ -1,87 +1,50 @@
-# Real-time Cloud Dashboard Frontend
+# Cloud Dashboard Frontend
 
-React-based frontend for the Real-time Cloud Dashboard. Integrates with the Express + Socket.IO backend for authentication, user management, metrics, and live updates.
+React-based frontend for the Real-time Cloud Dashboard with authentication, users CRUD, charts, and real-time updates via Socket.IO.
 
-## Features
+## Quick Start
 
-- Auth: Login, Register, Session validation via JWT
-- Users: Admin-only CRUD with Activity logging
-- Metrics: Stats and recent activity via REST
-- Realtime: Live event feed via Socket.IO (/metrics namespace)
-- Theming: Ocean Professional theme, responsive layout
+1) Install dependencies
+- npm install
 
-## Prerequisites
+2) Configure environment
+- Copy .env.example to .env and adjust values as needed:
+  - REACT_APP_API_BASE_URL=http://localhost:4000
+  - REACT_APP_SOCKET_URL=http://localhost:4000
+  - REACT_APP_SOCKET_PATH=/socket.io
 
-- Node.js >= 18
-- Backend running (see ../cloud_dashboard_backend/README.md)
+3) Run the app
+- npm start
+- The app will be available at http://localhost:3000
 
-## Environment
+## Environment Variables
 
-Quick start:
+- REACT_APP_API_BASE_URL: Base URL for backend HTTP API (no trailing slash)
+- REACT_APP_SOCKET_URL: Socket.IO server URL
+- REACT_APP_SOCKET_PATH: Socket.IO path (must match backend)
 
-1) Copy example:
-```
-cp .env.example .env
-```
+Note: Additional variables may exist for backend provisioning but are not used by the frontend directly:
+REACT_APP_MONGO_URI, REACT_APP_MONGO_DB_NAME, REACT_APP_MONGODB_URI, REACT_APP_JWT_SECRET, REACT_APP_DEFAULT_ADMIN_NAME, REACT_APP_DEFAULT_ADMIN_EMAIL, REACT_APP_DEFAULT_ADMIN_PASSWORD
 
-2) Set required variables in .env:
-```
-REACT_APP_API_BASE_URL=http://localhost:4000/api
-REACT_APP_SOCKET_URL=http://localhost:4000
-REACT_APP_SOCKET_PATH=/socket.io
-```
+## API Integration
 
-- http.js reads REACT_APP_API_BASE_URL for Axios baseURL.
-- useSocket.js reads REACT_APP_SOCKET_URL and REACT_APP_SOCKET_PATH for Socket.IO client.
-- Ensure backend CORS_ORIGIN includes your frontend origin (e.g., http://localhost:3000).
+- Axios client attaches Bearer token from localStorage ('token') and handles 401 by clearing session and redirecting to /login.
+- Endpoints:
+  - POST /auth/login
+  - POST /auth/register
+  - GET /auth/me
+  - /users (GET list, POST create)
+  - /users/:id (GET, PUT, DELETE)
+  - GET /metrics/stats
+  - GET /metrics/activity
 
-Important:
-- After changing any REACT_APP_* variables, you must rebuild/restart the frontend for changes to take effect.
-  - Dev: stop and re-run `npm start`
-  - Prod: re-run `npm run build` and redeploy
+## Realtime
 
-## Auth expectations
+- The Dashboard connects to the Socket.IO metrics namespace and listens for `metric:update` events to update StatCards and the live chart. LiveIndicator shows connection status.
 
-- POST /auth/login returns { token, user }
-- POST /auth/register returns { token, user }
-- GET /auth/me returns the user profile directly (not wrapped as { user: ... })
+## Routes and Guards
 
-The app stores:
-- auth_token (JWT) and
-- auth_user (JSON user) in localStorage.
+- ProtectedRoute gates authenticated routes.
+- RoleRoute restricts routes to a specific role (e.g., admin for Users page).
 
-401 responses trigger automatic logout and redirect to /login.
-
-## Live metrics
-
-- REST: GET /metrics/stats and GET /metrics/activity
-- WebSocket: connects to `${REACT_APP_SOCKET_URL}/metrics` using `REACT_APP_SOCKET_PATH`
-- Listens for "metric:update" events and updates the dashboard in real-time
-
-## Getting Started
-
-Install dependencies:
-
-```
-npm install
-```
-
-Run development server:
-
-```
-npm start
-```
-
-App runs at http://localhost:3000
-
-## Scripts
-
-- npm start: start dev server
-- npm run build: build for production
-- npm test: run tests
-
-## Notes
-
-- Configure backend CORS_ORIGIN to match your frontend origin (e.g., http://localhost:3000).
-- Ensure SOCKET_PATH (backend) equals REACT_APP_SOCKET_PATH (frontend).
-- For MongoDB/Atlas and backend configuration, see the backend README.
+See README_DEPLOY.md for deployment notes.

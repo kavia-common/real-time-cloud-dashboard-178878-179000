@@ -3,107 +3,71 @@ import axios from 'axios';
 /**
  * Axios HTTP client with:
  * - Base URL from REACT_APP_API_BASE_URL
- * - Authorization Bearer token injection
- * - Global 401 handling -> broadcast unauthorized and redirect to /login
+ * - Authorization Bearer token injection from localStorage 'token'
+ * - Global 401 handling -> clear session and redirect to /login
  */
 
-// Simple listener registry to notify AuthContext on unauthorized without coupling
-const listeners = new Set();
+// PUBLIC_INTERFACE
+export const TOKEN_STORAGE_KEY = 'token';
 
-/**
- * PUBLIC_INTERFACE
- * Subscribe to global auth events (e.g., 'unauthorized').
- * Returns an unsubscribe function.
- */
-export function subscribeAuth(listener) {
-  /** Subscribe to unauthorized/logout notifications. Returns unsubscribe fn. */
-  if (typeof listener === 'function') {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
+// PUBLIC_INTERFACE
+export function clearAuthAndRedirect() {
+  /** Clears auth token and user info and redirects to /login. */
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem('user');
+  } catch (e) {
+    // ignore storage errors
   }
-  return () => {};
-}
-
-function emitUnauthorized() {
-  listeners.forEach((l) => {
-    try {
-      l('unauthorized');
-    } catch {
-      // ignore listener errors
+  if (typeof window !== 'undefined') {
+    // Preserve attempted path for better UX
+    const current = window.location.pathname + window.location.search;
+    const next = encodeURIComponent(current);
+    if (window.location.pathname !== '/login') {
+      window.location.href = `/login?next=${next}`;
     }
-  });
+  }
 }
 
-/**
- * Determine base URL from environment with graceful fallback.
- * If REACT_APP_API_BASE_URL is not set, we will:
- *  - log a clear warning to console with guidance to set it
- *  - attempt a sensible default of http://localhost:4000
- * Note: endpoints use relative paths (e.g., /auth/login), so both
- * http://localhost:4000 and http://localhost:4000/api can work depending
- * on backend routing. Adjust your .env to match your backend prefix.
- */
-let BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').trim();
+const baseURL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000').trim();
 
-if (!BASE_URL) {
-  // Graceful warning to guide developers during setup
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[http] REACT_APP_API_BASE_URL is not set. Falling back to http://localhost:4000. ' +
-      'Create cloud_dashboard_frontend/.env from .env.example and set REACT_APP_API_BASE_URL.'
-  );
-  BASE_URL = 'http://localhost:4000';
-}
-
-const http = axios.create({
-  baseURL: BASE_URL,
-  timeout: 20000,
+const api = axios.create({
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: false,
 });
 
-// Request: inject Bearer token if present in localStorage
-http.interceptors.request.use(
+// Attach bearer token from localStorage
+api.interceptors.request.use(
   (config) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
       if (token) {
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
+      } else if (config.headers?.Authorization) {
+        delete config.headers.Authorization;
       }
     } catch {
-      // ignore storage issues
+      // ignore storage access errors
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response: handle 401 by clearing storage, emitting event, and redirecting to /login
-http.interceptors.response.use(
+// Handle global responses: logout on 401
+api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
     if (status === 401) {
-      try {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
-      } catch {
-        // ignore
-      }
-      emitUnauthorized();
-      if (typeof window !== 'undefined') {
-        const current = window.location.pathname + window.location.search;
-        const next = encodeURIComponent(current);
-        if (window.location.pathname !== '/login') {
-          window.location.href = `/login?next=${next}`;
-        }
-      }
+      clearAuthAndRedirect();
     }
     return Promise.reject(error);
   }
 );
 
-// PUBLIC_INTERFACE
-export default http;
+export default api;

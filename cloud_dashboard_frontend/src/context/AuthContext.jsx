@@ -1,134 +1,147 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../api/endpoints';
-import { subscribeAuth } from '../api/http';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import api, { TOKEN_STORAGE_KEY, clearAuthAndRedirect } from '../api/http';
+import endpoints, { apiAuth } from '../api/endpoints';
 
 const AuthContext = createContext(null);
 
 // PUBLIC_INTERFACE
-export const useAuth = () => {
-  /** Hook to access authentication state and actions */
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-};
+export function useAuth() {
+  /** React hook to access Auth context. */
+  return useContext(AuthContext);
+}
 
-// Storage keys
-const TOKEN_KEY = 'auth_token';
-const USER_KEY = 'auth_user';
-
-/**
- * PUBLIC_INTERFACE
- * Provides application-wide authentication state and actions.
- * - Initializes state from localStorage
- * - Validates session via /auth/me on load
- * - Exposes login, register, and logout methods
- * - Persists token/user in localStorage
- */
+/** Export as both named and default to satisfy various import styles. */
+// PUBLIC_INTERFACE
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [initializing, setInitializing] = useState(true);
-
-  // Listen for unauthorized events from http client
-  useEffect(() => {
-    const unsubscribe = subscribeAuth((event) => {
-      if (event === 'unauthorized') {
-        try {
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(USER_KEY);
-        } catch {
-          // ignore
-        }
-        setUser(null);
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  // Bootstrap from localStorage and validate
-  useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const storedUser = localStorage.getItem(USER_KEY);
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-        if (token) {
-          // Validate session
-          const { data } = await apiAuth.me();
-          // Backend returns user profile directly (not wrapped)
-          const userProfile = data && typeof data === 'object' ? data : null;
-          if (userProfile?.id && userProfile?.email) {
-            setUser(userProfile);
-            localStorage.setItem(USER_KEY, JSON.stringify(userProfile));
-          } else {
-            // invalid token / unexpected shape
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(USER_KEY);
-            setUser(null);
-          }
-        }
-      } catch {
-        // if validation fails, clear session
-        try {
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(USER_KEY);
-        } catch {}
-        setUser(null);
-      } finally {
-        setInitializing(false);
-      }
-    };
-    bootstrap();
-  }, []);
-
-  const login = useCallback(async (email, password) => {
-    const res = await apiAuth.login({ email, password });
-    const { token, user: userData } = res.data || {};
-    if (!token || !userData) {
-      throw new Error('Invalid login response');
-    }
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
-    return userData;
-  }, []);
-
-  const register = useCallback(async (name, email, password) => {
-    const res = await apiAuth.register({ name, email, password });
-    const { token, user: userData } = res.data || {};
-    if (!token || !userData) {
-      throw new Error('Invalid register response');
-    }
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
-    return userData;
-  }, []);
-
-  const logout = useCallback(() => {
+  /** Provides authentication state and actions for the app. */
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY) || null);
+  const [user, setUser] = useState(() => {
     try {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-    } catch {}
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  const saveSession = (jwt, userInfo) => {
+    setToken(jwt);
+    setUser(userInfo);
+    try {
+      localStorage.setItem(TOKEN_STORAGE_KEY, jwt);
+      localStorage.setItem('user', JSON.stringify(userInfo));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const clearSession = () => {
+    setToken(null);
     setUser(null);
+    try {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem('user');
+    } catch {
+      // ignore
+    }
+  };
+
+  // PUBLIC_INTERFACE
+  const login = async (email, password) => {
+    /** Performs login with credentials and persists session. */
+    setLoading(true);
+    try {
+      const { data } = await apiAuth.login({ email, password });
+      if (data?.token && data?.user) {
+        saveSession(data.token, data.user);
+        return { ok: true, user: data.user };
+      }
+      return { ok: false, error: 'Invalid response' };
+    } catch (e) {
+      return { ok: false, error: e?.response?.data?.message || 'Login failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PUBLIC_INTERFACE
+  const register = async (payloadOrName, emailMaybe, passwordMaybe) => {
+    /** Registers new user and persists session.
+     * Accepts either (name, email, password) or an object payload {name,email,password}
+     */
+    setLoading(true);
+    try {
+      const payload = typeof payloadOrName === 'object'
+        ? payloadOrName
+        : { name: payloadOrName, email: emailMaybe, password: passwordMaybe };
+      const { data } = await apiAuth.register(payload);
+      if (data?.token && data?.user) {
+        saveSession(data.token, data.user);
+        return { ok: true, user: data.user };
+      }
+      return { ok: false, error: 'Invalid response' };
+    } catch (e) {
+      return { ok: false, error: e?.response?.data?.message || 'Register failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PUBLIC_INTERFACE
+  const me = async () => {
+    /** Fetches current user profile and updates local state. */
+    if (!token) return null;
+    try {
+      const { data } = await api.get(endpoints.me);
+      const u = data?.user || data;
+      setUser(u);
+      try {
+        localStorage.setItem('user', JSON.stringify(u));
+      } catch {}
+      return u;
+    } catch {
+      // token likely invalid now
+      clearSession();
+      return null;
+    }
+  };
+
+  // PUBLIC_INTERFACE
+  const logout = () => {
+    /** Clears session and redirects to login page. */
+    clearSession();
+    clearAuthAndRedirect();
+  };
+
+  // Restore session on load if token exists
+  useEffect(() => {
+    (async () => {
+      if (token && !user) {
+        await me();
+      }
+      setBootstrapped(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo(
     () => ({
+      token,
       user,
-      role: user?.role || 'user',
-      initializing,
-      isAuthenticated: !!user,
+      loading,
+      bootstrapped,
       login,
       register,
+      me,
       logout,
-      setUser, // optional exposure for profile updates
+      isAuthenticated: !!token && !!user,
+      role: user?.role || 'user',
     }),
-    [user, initializing, login, register, logout]
+    [token, user, loading, bootstrapped]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export default AuthContext;
+export default AuthProvider;

@@ -1,85 +1,47 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import Button from '../components/ui/Button.tsx';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Input from '../components/ui/Input.tsx';
+import Button from '../components/ui/Button.tsx';
+import { useAuth } from '../context/AuthContext';
+import Toast from '../components/ui/Toast.jsx';
 
-const Login = () => {
-  const { login } = useAuth();
+export default function Login() {
+  const { login, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next') || '/';
   const [form, setForm] = useState({ email: '', password: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  const onChange = (e) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    if (error) setError('');
-  };
-
-  const validate = () => {
-    if (!form.email || !form.password) return 'Email and password are required.';
-    return '';
-  };
+  const [toast, setToast] = useState(null);
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await login(form.email, form.password);
+    const res = await login(form.email, form.password);
+    if (res.ok) {
       navigate(next);
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Login failed. Please check your credentials.';
-      setError(msg);
-    } finally {
-      setSubmitting(false);
+    } else {
+      setToast({ type: 'error', message: res.error || 'Login failed' });
     }
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gray-50">
-      <form onSubmit={onSubmit} className="bg-white p-6 rounded shadow w-full max-w-md space-y-4">
-        <h1 className="text-xl font-semibold">Sign in</h1>
-        {error && <div className="text-red-600 text-sm">{error}</div>}
-        <Input
-          label="Email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={onChange}
-          required
-        />
-        <Input
-          label="Password"
-          name="password"
-          type="password"
-          value={form.password}
-          onChange={onChange}
-          required
-        />
-        <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? 'Signing in...' : 'Sign in'}
-        </Button>
-        <div className="text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link className="text-blue-600" to="/register">
-            Create one
+    <div className="min-h-screen grid place-items-center p-4">
+      <div className="bg-white rounded-lg shadow p-6 w-full max-w-md space-y-4">
+        <h1 className="text-xl font-bold">Login</h1>
+        <form className="space-y-3" onSubmit={onSubmit}>
+          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} required />
+          <Input label="Password" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} required />
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? 'Signing in...' : 'Login'}
+          </Button>
+        </form>
+        <div className="text-sm text-gray-500">
+          No account?{' '}
+          <Link className="text-blue-600 hover:underline" to="/register">
+            Register
           </Link>
         </div>
-      </form>
+      </div>
+      {toast && <Toast type={toast.type} onClose={() => setToast(null)}>{toast.message}</Toast>}
     </div>
   );
-};
-
-export default Login;
+}

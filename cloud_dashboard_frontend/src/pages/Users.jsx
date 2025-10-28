@@ -1,386 +1,136 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import DataTable from '../components/ui/DataTable';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
-import Modal from '../components/ui/Modal';
-import Button from '../components/ui/Button.tsx';
-import Input from '../components/ui/Input.tsx';
-import Select from '../components/ui/Select.tsx';
-import Tabs from '../components/ui/Tabs.tsx';
+import React, { useEffect, useMemo, useState } from 'react';
 import { apiUsers } from '../api/endpoints';
-import { useAuth } from '../context/AuthContext';
-import '../styles/theme.css';
-
-// Lightweight toast implementation
-function useToast() {
-  const [toast, setToast] = useState(null);
-  const show = useCallback((message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
-  const node = toast ? (
-    <div
-      role="status"
-      style={{
-        position: 'fixed',
-        right: 16,
-        bottom: 16,
-        background: 'var(--color-surface)',
-        color: 'var(--color-text)',
-        border: '1px solid var(--color-border)',
-        boxShadow: 'var(--shadow-lg)',
-        padding: '12px 16px',
-        borderLeft: `4px solid ${toast.type === 'error' ? 'var(--color-error)' : toast.type === 'success' ? 'var(--color-secondary)' : 'var(--color-primary)'}`,
-        zIndex: 50,
-        borderRadius: 8,
-      }}
-      className="small"
-    >
-      {toast.message}
-    </div>
-  ) : null;
-  return { show, node };
-}
+import DataTable from '../components/ui/DataTable';
+import Button from '../components/ui/Button.tsx';
+import Modal from '../components/ui/Modal.jsx';
+import Input from '../components/ui/Input.tsx';
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
+import Toast from '../components/ui/Toast.jsx';
 
 export default function Users() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-
-  // table and ui state
-  const [rows, setRows] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState('');
-  const [editUser, setEditUser] = useState(null); // when set, edit modal open
-  const [createOpen, setCreateOpen] = useState(false);
-  const [toDelete, setToDelete] = useState(null);
-  const [pendingIds, setPendingIds] = useState(new Set());
-  const [errorIds, setErrorIds] = useState(new Set());
-  const [filterTab, setFilterTab] = useState('all');
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+  const [toast, setToast] = useState(null);
 
-  const { show: showToast, node: toastNode } = useToast();
-
-  const filterTabs = useMemo(
+  const columns = useMemo(
     () => [
-      { id: 'all', label: 'All Users', icon: '👥' },
-      { id: 'active', label: 'Active', icon: '✅' },
-      { id: 'invited', label: 'Invited', icon: '📧' },
-      { id: 'disabled', label: 'Disabled', icon: '🚫' },
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'role', label: 'Role' },
+      {
+        key: 'actions',
+        label: 'Actions',
+        render: (row) => (
+          <div className="space-x-2">
+            <Button size="sm" variant="secondary" onClick={() => onEdit(row)}>
+              Edit
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => onDeleteAsk(row.id || row._id)}>
+              Delete
+            </Button>
+          </div>
+        ),
+      },
     ],
     []
   );
 
-  const filteredRows = useMemo(() => {
-    if (filterTab === 'all') return rows;
-    return rows.filter((r) => r.status === filterTab);
-  }, [rows, filterTab]);
-
-  const columns = useMemo(() => {
-    const base = [
-      { header: 'Name', accessor: 'name', sortable: true },
-      { header: 'Email', accessor: 'email', sortable: true },
-      { header: 'Role', accessor: 'role', sortable: true },
-      { header: 'Status', accessor: 'status', sortable: true },
-    ];
-    if (isAdmin) {
-      base.push({
-        header: 'Actions',
-        accessor: 'actions',
-        render: (r) => (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn ghost" onClick={() => setEditUser(r)}>Edit</button>
-            <button className="btn danger" onClick={() => setToDelete(r)}>Delete</button>
-          </div>
-        )
-      });
-    }
-    return base;
-  }, [isAdmin]);
-
-  // const optimistic = useMemo(() => ({ pendingIds, errorIds }), [pendingIds, errorIds]);
-
-  const fetchUsers = useCallback(async () => {
-    if (!isAdmin) return;
+  const load = async () => {
     setLoading(true);
-    setFetchError('');
     try {
-      // Backend currently returns full list without pagination; we paginate client-side in DataTable
       const { data } = await apiUsers.list();
-      setRows(Array.isArray(data) ? data : []);
+      setItems(Array.isArray(data?.users) ? data.users : Array.isArray(data) ? data : []);
     } catch (e) {
-      const msg = e?.response?.data?.error || 'Failed to load users';
-      setFetchError(msg);
-      showToast(msg, 'error');
+      setToast({ type: 'error', message: e?.response?.data?.message || 'Failed to load users' });
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, showToast]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  // Create/Edit form state and logic
-  const [form, setForm] = useState({ name: '', email: '', role: 'user', status: 'active', password: '' });
-  const [formErrors, setFormErrors] = useState({});
-
-  useEffect(() => {
-    if (editUser) {
-      setForm({ name: editUser.name || '', email: editUser.email || '', role: editUser.role || 'user', status: editUser.status || 'active', password: '' });
-      setFormErrors({});
-    }
-  }, [editUser]);
-
-  const validate = useCallback(() => {
-    const errors = {};
-    if (!form.name || form.name.trim().length < 2) errors.name = 'Name is required';
-    if (!form.email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(form.email)) errors.email = 'Valid email is required';
-    if (!['user', 'admin'].includes(form.role)) errors.role = 'Role must be user or admin';
-    if (!['active', 'invited', 'disabled'].includes(form.status)) errors.status = 'Invalid status';
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [form]);
-
-  const resetForm = () => {
-    setForm({ name: '', email: '', role: 'user', status: 'active', password: '' });
-    setFormErrors({});
   };
 
-  async function submitCreate(e) {
+  useEffect(() => {
+    load();
+  }, []);
+
+  const onCreate = () => {
+    setEditing({ name: '', email: '', role: 'user', password: '' });
+    setShowForm(true);
+  };
+
+  const onEdit = (row) => {
+    setEditing({ ...row, id: row.id || row._id, password: '' });
+    setShowForm(true);
+  };
+
+  const onDeleteAsk = (id) => setConfirm({ open: true, id });
+
+  const onDelete = async () => {
+    try {
+      await apiUsers.remove(confirm.id);
+      setToast({ type: 'success', message: 'User deleted' });
+      setConfirm({ open: false, id: null });
+      load();
+    } catch (e) {
+      setToast({ type: 'error', message: e?.response?.data?.message || 'Delete failed' });
+    }
+  };
+
+  const onSave = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
     try {
-      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, status: form.status };
-      if (form.password) payload.password = form.password;
-      const tempId = `tmp_${Date.now()}`;
-      const optimisticUser = { id: tempId, ...payload };
-      setPendingIds((s) => new Set([...s, tempId]));
-      setRows((rs) => [optimisticUser, ...rs]);
-
-      const { data } = await apiUsers.create(payload);
-      // replace temp row with real row
-      setRows((rs) => rs.map((r) => (r.id === tempId ? data : r)));
-      setPendingIds((s) => {
-        const n = new Set(s);
-        n.delete(tempId);
-        return n;
-      });
-      setCreateOpen(false);
-      resetForm();
-      showToast('User created', 'success');
-    } catch (e) {
-      const msg = e?.response?.data?.error || 'Failed to create user';
-      setErrorIds((s) => new Set([...s, 'create']));
-      showToast(msg, 'error');
+      if (editing.id || editing._id) {
+        const id = editing.id || editing._id;
+        const payload = { name: editing.name, email: editing.email, role: editing.role };
+        if (editing.password) payload.password = editing.password;
+        await apiUsers.update(id, payload);
+        setToast({ type: 'success', message: 'User updated' });
+      } else {
+        await apiUsers.create(editing);
+        setToast({ type: 'success', message: 'User created' });
+      }
+      setShowForm(false);
+      setEditing(null);
+      load();
+    } catch (err) {
+      setToast({ type: 'error', message: err?.response?.data?.message || 'Save failed' });
     }
-  }
-
-  async function submitEdit(e) {
-    e.preventDefault();
-    if (!validate() || !editUser) return;
-    const id = editUser.id;
-    try {
-      setPendingIds((s) => new Set([...s, id]));
-      // optimistic patch of local row
-      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, name: form.name, role: form.role, status: form.status } : r)));
-      const payload = { name: form.name, role: form.role, status: form.status };
-      const { data } = await apiUsers.update(id, payload);
-      setRows((rs) => rs.map((r) => (r.id === id ? data : r)));
-      setPendingIds((s) => {
-        const n = new Set(s);
-        n.delete(id);
-        return n;
-      });
-      setEditUser(null);
-      resetForm();
-      showToast('User updated', 'success');
-    } catch (e) {
-      const msg = e?.response?.data?.error || 'Failed to update user';
-      setPendingIds((s) => {
-        const n = new Set(s);
-        n.delete(id);
-        return n;
-      });
-      setErrorIds((s) => new Set([...s, id]));
-      showToast(msg, 'error');
-    }
-  }
-
-  async function confirmDelete() {
-    if (!toDelete) return;
-    const id = toDelete.id;
-    try {
-      // optimistic remove
-      setRows((rs) => rs.filter((r) => r.id !== id));
-      await apiUsers.remove(id);
-      setToDelete(null);
-      showToast('User deleted', 'success');
-    } catch (e) {
-      // restore on failure
-      setRows((_) => rows);
-      const msg = e?.response?.data?.error || 'Failed to delete user';
-      showToast(msg, 'error');
-    }
-  }
+  };
 
   return (
-    <div className="page">
-      <div className="card">
-        <div
-          className="card-header"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 'var(--spacing-md)',
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0 }}>Users</h2>
-            <p className="muted small" style={{ marginTop: '4px' }}>
-              Manage user accounts and permissions
-            </p>
-          </div>
-          {isAdmin && (
-            <Button variant="primary" onClick={() => { setCreateOpen(true); resetForm(); }}>
-              ➕ Invite User
-            </Button>
-          )}
-        </div>
-
-        {fetchError ? (
-          <div
-            className="badge error"
-            role="alert"
-            style={{ margin: 'var(--spacing-md)', display: 'block', padding: 'var(--spacing-sm)' }}
-          >
-            {fetchError}
-          </div>
-        ) : null}
-
-        {isAdmin ? (
-          <>
-            <div className="card-content">
-              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                <Tabs
-                  items={filterTabs}
-                  activeTab={filterTab}
-                  onChange={setFilterTab}
-                  variant="segmented"
-                />
-              </div>
-            </div>
-
-            <DataTable
-              columns={columns}
-              rows={filteredRows}
-              optimistic={{ pendingIds, errorIds }}
-              initialPageSize={10}
-            />
-            {loading ? (
-              <div className="muted" role="status" aria-live="polite" style={{ marginTop: 8 }}>
-                <div className="skeleton" style={{ height: 12, marginBottom: 8 }} />
-                <div className="skeleton" style={{ height: 12, marginBottom: 8 }} />
-                <div className="skeleton" style={{ height: 12 }} />
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="muted">You must be an admin to view users.</div>
-        )}
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Users</h1>
+        <Button onClick={onCreate}>Add User</Button>
       </div>
 
-      {/* Create Modal */}
-      <Modal
-        open={createOpen}
-        title="Invite User"
-        onClose={() => setCreateOpen(false)}
-        footer={(
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn ghost" onClick={() => setCreateOpen(false)}>Cancel</button>
-            <Button variant="primary" onClick={submitCreate}>Create</Button>
-          </div>
-        )}
-      >
-        <form onSubmit={submitCreate}>
-          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={formErrors.name} required />
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={formErrors.email} required />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Select
-              label="Role"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              options={[
-                { value: 'user', label: 'User' },
-                { value: 'admin', label: 'Admin' },
-              ]}
-              error={formErrors.role}
-            />
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'invited', label: 'Invited' },
-                { value: 'disabled', label: 'Disabled' },
-              ]}
-              error={formErrors.status}
-            />
-          </div>
-          <Input label="Initial password (optional)" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        </form>
-      </Modal>
+      <DataTable columns={columns} data={items} loading={loading} />
 
-      {/* Edit Modal */}
-      <Modal
-        open={!!editUser}
-        title={editUser ? `Edit ${editUser.email}` : 'Edit'}
-        onClose={() => { setEditUser(null); resetForm(); }}
-        footer={(
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn ghost" onClick={() => { setEditUser(null); resetForm(); }}>Cancel</button>
-            <Button variant="primary" onClick={submitEdit}>Save</Button>
-          </div>
-        )}
-      >
-        <form onSubmit={submitEdit}>
-          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={formErrors.name} required />
-          <Input label="Email" type="email" value={form.email} disabled helperText="Email cannot be changed" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Select
-              label="Role"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              options={[
-                { value: 'user', label: 'User' },
-                { value: 'admin', label: 'Admin' },
-              ]}
-              error={formErrors.role}
-            />
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'invited', label: 'Invited' },
-                { value: 'disabled', label: 'Disabled' },
-              ]}
-              error={formErrors.status}
-            />
+      <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={editing?.id || editing?._id ? 'Edit User' : 'Create User'}>
+        <form className="space-y-3" onSubmit={onSave}>
+          <Input label="Name" value={editing?.name || ''} onChange={(e) => setEditing((s) => ({ ...s, name: e.target.value }))} required />
+          <Input label="Email" type="email" value={editing?.email || ''} onChange={(e) => setEditing((s) => ({ ...s, email: e.target.value }))} required />
+          <Input label="Role" value={editing?.role || ''} onChange={(e) => setEditing((s) => ({ ...s, role: e.target.value }))} required />
+          <Input label="Password" type="password" value={editing?.password || ''} onChange={(e) => setEditing((s) => ({ ...s, password: e.target.value }))} placeholder={editing?.id || editing?._id ? 'Leave blank to keep' : ''} />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Save</Button>
           </div>
         </form>
       </Modal>
 
       <ConfirmDialog
-        open={Boolean(toDelete)}
+        isOpen={confirm.open}
         title="Delete User"
-        message={toDelete ? `Are you sure you want to delete ${toDelete.email}?` : ''}
-        onCancel={() => setToDelete(null)}
-        onConfirm={confirmDelete}
+        message="Are you sure you want to delete this user?"
+        onCancel={() => setConfirm({ open: false, id: null })}
+        onConfirm={onDelete}
       />
 
-      {toastNode}
+      {toast && <Toast type={toast.type} onClose={() => setToast(null)}>{toast.message}</Toast>}
     </div>
   );
 }
