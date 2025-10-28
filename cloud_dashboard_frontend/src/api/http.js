@@ -2,9 +2,10 @@ import axios from 'axios';
 
 /**
  * Axios HTTP client with:
- * - Base URL from REACT_APP_API_BASE_URL
+ * - Base URL from REACT_APP_API_BASE_URL (cloud_dashboard_frontend/.env), e.g., http://localhost:4000
  * - Authorization Bearer token injection from localStorage 'token'
  * - Global 401 handling -> clear session and redirect to /login
+ * Note: Keep backend secrets (Mongo URI, JWT secret) only in backend .env; do not add them to frontend .env.
  */
 
 // PUBLIC_INTERFACE

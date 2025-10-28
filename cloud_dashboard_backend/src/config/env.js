@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
+ * Environment configuration loader
+ * Values are sourced from process.env (.env via dotenv). Defaults are provided for local dev.
+ * Ensure secrets (MONGODB_URI, JWT_SECRET) are set in cloud_dashboard_backend/.env (never in frontend).
  * Centralized environment configuration with defaults and basic validation.
  * Note: All secrets should be set via .env in deployment.
  */

@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+
+/**
+ * Socket.IO client
+ * Uses:
+ *  - REACT_APP_SOCKET_URL (backend origin, e.g., http://localhost:4000)
+ *  - REACT_APP_SOCKET_PATH (must equal backend SOCKET_PATH; default /socket.io)
+ */
 import { TOKEN_STORAGE_KEY } from '../api/http';
 
 // PUBLIC_INTERFACE

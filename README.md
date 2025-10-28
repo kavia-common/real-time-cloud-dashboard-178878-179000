@@ -13,6 +13,7 @@ Frontend (.env at cloud_dashboard_frontend)
 - REACT_APP_API_BASE_URL: Base URL for REST API, e.g. http://localhost:4000
 - REACT_APP_SOCKET_URL: Base URL for Socket.IO, e.g. http://localhost:4000
 - REACT_APP_SOCKET_PATH: Socket.IO path; must match backend SOCKET_PATH (default /socket.io)
+Note: Do not place backend secrets in the frontend .env.
 
 Backend (.env at cloud_dashboard_backend)
 - PORT: HTTP port (default 4000)
